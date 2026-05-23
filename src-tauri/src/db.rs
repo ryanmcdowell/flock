@@ -25,8 +25,20 @@ mod tests {
     async fn test_init_creates_schema() {
         let dir = tempdir().unwrap();
         let pool = init_pool(&dir.path().join("test.db")).await.unwrap();
-        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sync_state")
+
+        // sync_state seeded with 1 row
+        let (sync_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sync_state")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(count, 1);
+        assert_eq!(sync_count, 1);
+
+        // preferences seeded with 1 row and correct default
+        let (map_zoom,): (i64,) = sqlx::query_as("SELECT map_zoom FROM preferences WHERE id=1")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(map_zoom, 3);
+
+        // checkins table exists (empty)
+        let (checkin_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM checkins")
+            .fetch_one(&pool).await.unwrap();
+        assert_eq!(checkin_count, 0);
     }
 }
