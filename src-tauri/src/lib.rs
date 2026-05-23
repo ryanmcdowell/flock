@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod db;
+pub mod keychain;
 pub mod models;
 
 use db::DbPool;
