@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    swarm_to_notion_lib::run()
+    swarm_viewer_lib::run()
 }
