@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useState } from 'react'
 import { useAppStore } from '../store'
+import { loadCachedAndSync } from '../hooks/useTauriEvents'
 
 export default function ConnectScreen() {
   const [loading, setLoading] = useState(false)
@@ -13,6 +14,7 @@ export default function ConnectScreen() {
     try {
       await invoke('start_oauth')
       setAppView('loading')
+      await loadCachedAndSync()
     } catch (e) {
       setError(String(e))
     } finally {

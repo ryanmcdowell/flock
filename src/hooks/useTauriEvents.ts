@@ -1,33 +1,34 @@
 import { useEffect } from 'react'
-import { listen } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
 import type { CheckIn, Prefs, SyncProgress } from '../types'
 
-export function useTauriEvents() {
-  const { setCheckins, setPrefs, setAppView, setSyncProgress } = useAppStore()
+export async function loadCachedAndSync() {
+  const { setCheckins, setPrefs, setAppView } = useAppStore.getState()
+  const [checkins, prefs] = await Promise.all([
+    invoke<CheckIn[]>('get_checkins'),
+    invoke<Prefs>('get_prefs'),
+  ])
+  setCheckins(checkins)
+  setPrefs(prefs)
+  setAppView(checkins.length > 0 ? 'main' : 'loading')
+  invoke('start_sync').catch(console.error)
+}
 
+export function useTauriEvents() {
   useEffect(() => {
-    let unlistenProgress: (() => void) | undefined
-    let unlistenComplete: (() => void) | undefined
+    let unlistenProgress: UnlistenFn | undefined
+    let unlistenComplete: UnlistenFn | undefined
 
     async function init() {
-      // Check auth
-      const isAuthed = await invoke<boolean>('check_auth_status')
-      if (!isAuthed) { setAppView('connect'); return }
+      const { setAppView, setSyncProgress, setCheckins } = useAppStore.getState()
 
-      // Load cached data immediately
-      const [checkins, prefs] = await Promise.all([
-        invoke<CheckIn[]>('get_checkins'),
-        invoke<Prefs>('get_prefs'),
-      ])
-      setCheckins(checkins)
-      setPrefs(prefs)
-
-      // Subscribe to sync events before starting sync
+      // Attach listeners before any auth check so a sync started later
+      // (e.g., after fresh OAuth) is observed.
       unlistenProgress = await listen<SyncProgress>('sync-progress', (e) => {
         setSyncProgress(e.payload)
-        if (checkins.length === 0) setAppView('loading')
+        if (useAppStore.getState().checkins.length === 0) setAppView('loading')
       })
 
       unlistenComplete = await listen<null>('sync-complete', async () => {
@@ -37,11 +38,13 @@ export function useTauriEvents() {
         setAppView('main')
       })
 
-      // Show main if we already have data, otherwise show loading
-      setAppView(checkins.length > 0 ? 'main' : 'loading')
+      const isAuthed = await invoke<boolean>('check_auth_status')
+      if (!isAuthed) {
+        setAppView('connect')
+        return
+      }
 
-      // Start sync (background)
-      invoke('start_sync').catch(console.error)
+      await loadCachedAndSync()
     }
 
     init().catch(console.error)
