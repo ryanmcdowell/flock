@@ -2,6 +2,8 @@ pub mod commands;
 pub mod db;
 pub mod keychain;
 pub mod models;
+pub mod stats;
+pub mod swarm;
 
 use db::DbPool;
 use tauri::Manager;
