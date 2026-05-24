@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import { MarkerClusterer } from '@googlemaps/markerclusterer'
 import { useAppStore } from '../store'
 import { useFilteredCheckins } from '../hooks/useFilteredCheckins'
 import DetailCard from './DetailCard'
-import type { CheckIn } from '../types'
+import type { CheckIn, Prefs } from '../types'
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
 
@@ -48,6 +49,20 @@ export default function MapPanel() {
         fullscreenControl: false,
       })
       clusterer.current = new MarkerClusterer({ map: mapInstance.current })
+
+      mapInstance.current.addListener('idle', () => {
+        const center = mapInstance.current!.getCenter()
+        const zoom = mapInstance.current!.getZoom()
+        if (!center || zoom === undefined) return
+        const updated: Prefs = {
+          ...useAppStore.getState().prefs,
+          map_lat: center.lat(),
+          map_lng: center.lng(),
+          map_zoom: zoom,
+        }
+        useAppStore.getState().setPrefs(updated)
+        invoke('save_prefs', { prefs: updated }).catch(console.error)
+      })
     })
   }, [])
 
