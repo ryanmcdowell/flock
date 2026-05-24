@@ -1,0 +1,32 @@
+:root {
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-muted: #6b7280;
+  --color-muted-bg: #f3f4f6;
+  --color-input-bg: #f9fafb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #1f2937;
+    --color-border: #374151;
+    --color-muted: #9ca3af;
+    --color-muted-bg: #374151;
+    --color-input-bg: #111827;
+  }
+
+  body {
+    background: #111827;
+    color: #f9fafb;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
