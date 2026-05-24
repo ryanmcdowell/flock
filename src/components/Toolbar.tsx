@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
 import FilterChips from './FilterChips'
+import FilterPanel from './FilterPanel'
 import SettingsMenu from './SettingsMenu'
 
 export default function Toolbar() {
   const { searchQuery, setSearchQuery, panelView, setPanelView } = useAppStore()
+  const [filterOpen, setFilterOpen] = useState(false)
 
   function handleRefresh() {
     invoke('start_sync').catch(console.error)
@@ -28,6 +31,16 @@ export default function Toolbar() {
           background: 'var(--color-input-bg, #f9fafb)', fontSize: '14px',
         }}
       />
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setFilterOpen(o => !o)}
+          aria-label="Filters"
+          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--color-border, #e5e7eb)', background: 'var(--color-surface, #fff)', cursor: 'pointer', fontSize: '13px' }}
+        >
+          Filters
+        </button>
+        {filterOpen && <FilterPanel onClose={() => setFilterOpen(false)} />}
+      </div>
       <FilterChips />
       <button
         onClick={() => setPanelView(panelView === 'stats' ? 'timeline' : 'stats')}
