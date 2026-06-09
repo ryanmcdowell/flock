@@ -1,7 +1,11 @@
+import { useRef } from 'react'
 import { useAppStore } from '../store'
+import { useDraggable } from '../hooks/useDraggable'
 import SyncErrorBanner from './SyncErrorBanner'
 
 export default function LoadingScreen() {
+  const dragRef = useRef<HTMLDivElement>(null)
+  useDraggable(dragRef)
   const progress = useAppStore(s => s.syncProgress)
   const setAppView = useAppStore(s => s.setAppView)
   const pct = progress ? Math.min(100, (progress.loaded / Math.max(progress.total, 1)) * 100) : 0
@@ -16,7 +20,7 @@ export default function LoadingScreen() {
       background: 'var(--surface)',
       display: 'flex', flexDirection: 'column',
     }}>
-      <div data-tauri-drag-region style={{ height: 52, background: 'var(--accent)', flexShrink: 0 }} />
+      <div ref={dragRef} data-tauri-drag-region style={{ height: 52, background: 'var(--accent)', flexShrink: 0 }} />
       <SyncErrorBanner />
       <div style={{ flex: 1 }} />
 

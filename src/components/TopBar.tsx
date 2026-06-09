@@ -1,7 +1,11 @@
+import { useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
+import { useDraggable } from '../hooks/useDraggable'
 
 export default function TopBar() {
+  const barRef = useRef<HTMLDivElement>(null)
+  useDraggable(barRef)
   const panelView = useAppStore(s => s.panelView)
   const setPanelView = useAppStore(s => s.setPanelView)
   const query = useAppStore(s => s.searchQuery)
@@ -18,6 +22,7 @@ export default function TopBar() {
 
   return (
     <div
+      ref={barRef}
       data-tauri-drag-region
       style={{
         display: 'flex', alignItems: 'center', padding: '0 22px 0 86px',

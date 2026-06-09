@@ -1,9 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAppStore } from '../store'
 import { loadCachedAndSync } from '../hooks/useTauriEvents'
+import { useDraggable } from '../hooks/useDraggable'
 
 export default function ConnectScreen() {
+  const dragRef = useRef<HTMLDivElement>(null)
+  useDraggable(dragRef)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const setAppView = useAppStore(s => s.setAppView)
@@ -29,7 +32,7 @@ export default function ConnectScreen() {
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Spacer for OS title bar overlay so traffic lights have a non-content backdrop */}
-      <div data-tauri-drag-region style={{ height: 32, flexShrink: 0 }} />
+      <div ref={dragRef} data-tauri-drag-region style={{ height: 32, flexShrink: 0 }} />
 
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.05fr 1fr', minHeight: 0 }}>
         <PitchColumn />
