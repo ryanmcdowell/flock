@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, memo } from 'react'
 import { useAppStore } from '../store'
 import { useFilteredCheckins } from '../hooks/useFilteredCheckins'
 import { CAT_STYLE, mapCategory } from '../categories'
@@ -93,7 +93,7 @@ export default function TimelinePanel() {
   )
 }
 
-function TimelineRow({
+const TimelineRow = memo(function TimelineRow({
   item, selected, hovered, onSelect, onHover, query, showCats, showNotes,
 }: {
   item: CheckIn
@@ -175,7 +175,7 @@ function TimelineRow({
       </div>
     </li>
   )
-}
+})
 
 function Highlight({ text, q }: { text: string; q: string }) {
   if (!q) return <>{text}</>

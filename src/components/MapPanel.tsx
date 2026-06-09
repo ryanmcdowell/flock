@@ -13,7 +13,6 @@ const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
 const PAPER_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: 'geometry', stylers: [{ color: '#ede5d2' }] },
   { elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  // Re-enable just the labels we want, with strong contrast
   { elementType: 'labels.text.fill', stylers: [{ color: '#3d3225' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#f3ecd9' }, { weight: 3 }] },
   { featureType: 'administrative.country', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#2a2218' }] },
@@ -55,33 +54,49 @@ const PAPER_CLUSTER_RENDERER = {
   },
 }
 
-function pinIcon(color: string, selected: boolean): google.maps.Icon {
+// Build pin SVGs lazily and cache by (color, selected). Only ~12 unique combos.
+const ICON_CACHE = new Map<string, google.maps.Icon>()
+function getPinIcon(color: string, selected: boolean): google.maps.Icon {
+  const key = `${color}|${selected ? 1 : 0}`
+  let icon = ICON_CACHE.get(key)
+  if (icon) return icon
   const scale = selected ? 1.25 : 1
   const r = 9 * scale
   const inner = 3.2 * scale
   const size = Math.ceil(r * 2 + 4)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${-size/2} ${-size/2} ${size} ${size}">
-    <circle r="${r}" fill="white" stroke="${color}" stroke-width="2.2"/>
-    <circle r="${inner}" fill="${color}"/>
-  </svg>`
-  return {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${-size/2} ${-size/2} ${size} ${size}"><circle r="${r}" fill="white" stroke="${color}" stroke-width="2.2"/><circle r="${inner}" fill="${color}"/></svg>`
+  icon = {
     url: `data:image/svg+xml;base64,${btoa(svg)}`,
     scaledSize: new google.maps.Size(size, size),
     anchor: new google.maps.Point(size / 2, size / 2),
   }
+  ICON_CACHE.set(key, icon)
+  return icon
+}
+
+interface MarkerEntry {
+  marker: google.maps.Marker
+  color: string
+  lat: number
+  lng: number
 }
 
 export default function MapPanel() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<google.maps.Map | null>(null)
   const clusterer = useRef<MarkerClusterer | null>(null)
-  const markersById = useRef<Map<string, google.maps.Marker>>(new Map())
+  const markersById = useRef<Map<string, MarkerEntry>>(new Map())
+  const prevSelectedId = useRef<string | null>(null)
+  const savePrefsTimer = useRef<number | null>(null)
   const [mapsReady, setMapsReady] = useState(false)
-  const filteredCheckins = useFilteredCheckins()
+
+  const checkins = useAppStore(s => s.checkins)
   const prefs = useAppStore(s => s.prefs)
   const filters = useAppStore(s => s.filters)
   const selectedCheckinId = useAppStore(s => s.selectedCheckinId)
   const setSelectedCheckinId = useAppStore(s => s.setSelectedCheckinId)
+  const filteredCheckins = useFilteredCheckins()
+
   const initialFilterKey = useRef<string | null>(null)
   const filterKey = `${filters.city ?? ''}|${filters.datePreset}|${[...filters.cats].sort().join(',')}`
 
@@ -104,66 +119,84 @@ export default function MapPanel() {
         zoomControl: true,
       })
       clusterer.current = new MarkerClusterer({ map: mapInstance.current, renderer: PAPER_CLUSTER_RENDERER })
+
       mapInstance.current.addListener('idle', () => {
         const center = mapInstance.current!.getCenter()
         const zoom = mapInstance.current!.getZoom()
         if (!center || zoom === undefined) return
-        const updated: Prefs = {
-          ...useAppStore.getState().prefs,
-          map_lat: center.lat(),
-          map_lng: center.lng(),
-          map_zoom: zoom,
-        }
-        useAppStore.getState().setPrefs(updated)
-        invoke('save_prefs', { prefs: updated }).catch(console.error)
+        if (savePrefsTimer.current != null) clearTimeout(savePrefsTimer.current)
+        savePrefsTimer.current = window.setTimeout(() => {
+          const updated: Prefs = {
+            ...useAppStore.getState().prefs,
+            map_lat: center.lat(),
+            map_lng: center.lng(),
+            map_zoom: zoom,
+          }
+          useAppStore.getState().setPrefs(updated)
+          invoke('save_prefs', { prefs: updated }).catch(console.error)
+        }, 500)
       })
       setMapsReady(true)
     })
   }, [])
 
-  // Rebuild markers when filtered checkins change
-  useEffect(() => {
-    if (!mapsReady || !mapInstance.current || !clusterer.current) return
-    clusterer.current.clearMarkers()
-    markersById.current.clear()
-
-    const newMarkers = filteredCheckins
-      .filter(c => c.lat !== null && c.lng !== null)
-      .map(c => {
-        const cat = mapCategory(c.venue_category)
-        const color = CAT_STYLE[cat].dot
-        const marker = new google.maps.Marker({
-          position: { lat: c.lat!, lng: c.lng! },
-          icon: pinIcon(color, c.id === selectedCheckinId),
-        })
-        marker.addListener('click', () => setSelectedCheckinId(c.id))
-        markersById.current.set(c.id, marker)
-        return marker
-      })
-
-    clusterer.current.addMarkers(newMarkers)
-  }, [filteredCheckins, mapsReady])
-
-  // Update marker icon when selection changes
+  // Build marker pool from raw checkins (only when the dataset changes, NOT on filter clicks).
   useEffect(() => {
     if (!mapsReady) return
-    for (const [id, marker] of markersById.current) {
-      const c = filteredCheckins.find(x => x.id === id)
-      if (!c) continue
-      const cat = mapCategory(c.venue_category)
-      const color = CAT_STYLE[cat].dot
-      marker.setIcon(pinIcon(color, id === selectedCheckinId))
-    }
-    if (selectedCheckinId && mapInstance.current) {
-      const c = filteredCheckins.find(x => x.id === selectedCheckinId)
-      if (c?.lat != null && c?.lng != null) {
-        mapInstance.current.panTo({ lat: c.lat, lng: c.lng })
+    // Dispose markers we no longer need
+    const wantedIds = new Set(checkins.map(c => c.id))
+    for (const [id, entry] of markersById.current) {
+      if (!wantedIds.has(id)) {
+        entry.marker.setMap(null)
+        google.maps.event.clearInstanceListeners(entry.marker)
+        markersById.current.delete(id)
       }
     }
+    // Create markers for new check-ins
+    for (const c of checkins) {
+      if (c.lat == null || c.lng == null) continue
+      if (markersById.current.has(c.id)) continue
+      const color = CAT_STYLE[mapCategory(c.venue_category)].dot
+      const marker = new google.maps.Marker({
+        position: { lat: c.lat, lng: c.lng },
+        icon: getPinIcon(color, false),
+      })
+      marker.addListener('click', () => setSelectedCheckinId(c.id))
+      markersById.current.set(c.id, { marker, color, lat: c.lat, lng: c.lng })
+    }
+  }, [checkins, mapsReady])
+
+  // Swap the clusterer's visible set when filters change. No marker reconstruction.
+  useEffect(() => {
+    if (!mapsReady || !clusterer.current) return
+    clusterer.current.clearMarkers()
+    const visible: google.maps.Marker[] = []
+    for (const c of filteredCheckins) {
+      const entry = markersById.current.get(c.id)
+      if (entry) visible.push(entry.marker)
+    }
+    clusterer.current.addMarkers(visible)
+  }, [filteredCheckins, mapsReady])
+
+  // Selection — touch only the previously-selected and newly-selected markers (O(1)).
+  useEffect(() => {
+    if (!mapsReady) return
+    const prev = prevSelectedId.current
+    if (prev && prev !== selectedCheckinId) {
+      const entry = markersById.current.get(prev)
+      if (entry) entry.marker.setIcon(getPinIcon(entry.color, false))
+    }
+    if (selectedCheckinId) {
+      const entry = markersById.current.get(selectedCheckinId)
+      if (entry) {
+        entry.marker.setIcon(getPinIcon(entry.color, true))
+        mapInstance.current?.panTo({ lat: entry.lat, lng: entry.lng })
+      }
+    }
+    prevSelectedId.current = selectedCheckinId
   }, [selectedCheckinId, mapsReady])
 
-  // Refit map to filtered pins when filters change (but skip the initial render
-  // so the saved prefs view is preserved on startup)
+  // Refit map to filtered pins when filters change (skip first run so saved prefs restore).
   useEffect(() => {
     if (!mapsReady || !mapInstance.current) return
     if (initialFilterKey.current === null) {
@@ -175,10 +208,8 @@ export default function MapPanel() {
 
     const withCoords = filteredCheckins.filter(c => c.lat != null && c.lng != null)
     if (withCoords.length === 0) return
-
     const bounds = new google.maps.LatLngBounds()
     for (const c of withCoords) bounds.extend({ lat: c.lat!, lng: c.lng! })
-
     if (withCoords.length === 1) {
       mapInstance.current.panTo(bounds.getCenter())
       mapInstance.current.setZoom(14)
@@ -187,7 +218,9 @@ export default function MapPanel() {
     }
   }, [filterKey, mapsReady])
 
-  const selected = selectedCheckinId ? filteredCheckins.find(c => c.id === selectedCheckinId) ?? null : null
+  const selected = selectedCheckinId
+    ? filteredCheckins.find(c => c.id === selectedCheckinId) ?? null
+    : null
 
   if (!MAPS_KEY) {
     return (
