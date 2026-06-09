@@ -5,7 +5,8 @@ import { useAppStore } from '../store'
 import type { CheckIn, Prefs, SyncProgress } from '../types'
 
 export async function loadCachedAndSync() {
-  const { setCheckins, setPrefs, setAppView } = useAppStore.getState()
+  const { setCheckins, setPrefs, setAppView, setSyncError } = useAppStore.getState()
+  setSyncError(null)
   const [checkins, prefs] = await Promise.all([
     invoke<CheckIn[]>('get_checkins'),
     invoke<Prefs>('get_prefs'),
@@ -13,7 +14,10 @@ export async function loadCachedAndSync() {
   setCheckins(checkins)
   setPrefs(prefs)
   setAppView(checkins.length > 0 ? 'main' : 'loading')
-  invoke('start_sync').catch(console.error)
+  invoke('start_sync').catch((e) => {
+    console.error('start_sync failed:', e)
+    useAppStore.getState().setSyncError(String(e))
+  })
 }
 
 export function useTauriEvents() {
@@ -35,6 +39,7 @@ export function useTauriEvents() {
         const updated = await invoke<CheckIn[]>('get_checkins')
         setCheckins(updated)
         setSyncProgress(null)
+        useAppStore.getState().setSyncError(null)
         setAppView('main')
       })
 

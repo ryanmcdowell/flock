@@ -12,6 +12,7 @@ interface AppState {
   searchQuery: string
   filters: Filters
   syncProgress: SyncProgress | null
+  syncError: string | null
   // Actions
   setCheckins: (checkins: CheckIn[]) => void
   setPrefs: (prefs: Prefs) => void
@@ -22,6 +23,7 @@ interface AppState {
   setFilters: (f: Filters) => void
   clearFilters: () => void
   setSyncProgress: (p: SyncProgress | null) => void
+  setSyncError: (e: string | null) => void
 }
 
 const DEFAULT_FILTERS: Filters = { dateRange: { start: null, end: null }, city: null }
@@ -36,6 +38,7 @@ export const useAppStore = create<AppState>()((set) => ({
   searchQuery: '',
   filters: DEFAULT_FILTERS,
   syncProgress: null,
+  syncError: null,
   setCheckins: (checkins) => set({ checkins }),
   setPrefs: (prefs) => set({ prefs }),
   setAppView: (appView) => set({ appView }),
@@ -45,6 +48,7 @@ export const useAppStore = create<AppState>()((set) => ({
   setFilters: (filters) => set({ filters }),
   clearFilters: () => set({ filters: DEFAULT_FILTERS }),
   setSyncProgress: (syncProgress) => set({ syncProgress }),
+  setSyncError: (syncError) => set({ syncError }),
 }))
 
 // Expose getInitialState for test resets
@@ -52,4 +56,5 @@ export const useAppStore = create<AppState>()((set) => ({
   checkins: [], prefs: DEFAULT_PREFS, appView: 'connect' as AppView,
   panelView: 'timeline' as PanelView, selectedCheckinId: null,
   searchQuery: '', filters: DEFAULT_FILTERS, syncProgress: null,
+  syncError: null,
 })
