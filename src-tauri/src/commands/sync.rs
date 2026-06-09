@@ -10,14 +10,34 @@ const PAGE_SIZE: u32 = 250;
 
 #[tauri::command]
 pub async fn start_sync(app: AppHandle, pool: State<'_, DbPool>) -> Result<(), String> {
-    let token = keychain::get_token()?.ok_or("Not authenticated")?;
+    eprintln!("[sync] start_sync invoked");
+    let token = tokio::task::spawn_blocking(keychain::get_token)
+        .await
+        .map_err(|e| e.to_string())??
+        .ok_or("Not authenticated")?;
+    eprintln!("[sync] token retrieved (len={})", token.len());
     let sync_state = get_sync_state_inner(&pool).await?;
-    let client = Client::new();
-    if !sync_state.bulk_load_complete {
+    eprintln!(
+        "[sync] sync_state: bulk_load_complete={} last_sync_at={:?} total_fetched={}",
+        sync_state.bulk_load_complete, sync_state.last_sync_at, sync_state.total_fetched
+    );
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client build: {e}"))?;
+    let result = if !sync_state.bulk_load_complete {
+        eprintln!("[sync] entering bulk_load");
         bulk_load(&app, &pool, &client, &token).await
     } else {
+        eprintln!("[sync] entering incremental_sync");
         incremental_sync(&app, &pool, &client, &token, sync_state.last_sync_at).await
+    };
+    if let Err(e) = &result {
+        eprintln!("[sync] ERROR: {e}");
+    } else {
+        eprintln!("[sync] completed");
     }
+    result
 }
 
 async fn bulk_load(app: &AppHandle, pool: &DbPool, client: &Client, token: &str) -> Result<(), String> {

@@ -72,12 +72,36 @@ pub async fn fetch_page(
     if let Some(ts) = after {
         params.push(("afterTimestamp", ts.to_string()));
     }
+    eprintln!("[swarm] GET /v2/users/self/checkins limit={limit} offset={offset} after={after:?}");
     let resp = client
         .get("https://api.foursquare.com/v2/users/self/checkins")
-        .query(&params).send().await.map_err(|e| e.to_string())?;
-    if resp.status() == 429 { return Err("rate_limited".into()); }
-    let api: ApiResponse = resp.json().await.map_err(|e| e.to_string())?;
+        .query(&params).send().await.map_err(|e| {
+            let msg = format!("HTTP send: {e}");
+            eprintln!("[swarm] {msg}");
+            msg
+        })?;
+    let status = resp.status();
+    eprintln!("[swarm] response status={status}");
+    if status == 429 { return Err("rate_limited".into()); }
+    let body = resp.text().await.map_err(|e| {
+        let msg = format!("read body: {e}");
+        eprintln!("[swarm] {msg}");
+        msg
+    })?;
+    if !status.is_success() {
+        let preview: String = body.chars().take(300).collect();
+        eprintln!("[swarm] non-2xx body preview: {preview}");
+        return Err(format!("Foursquare API {status}: {preview}"));
+    }
+    let api: ApiResponse = serde_json::from_str(&body).map_err(|e| {
+        let preview: String = body.chars().take(300).collect();
+        let msg = format!("JSON parse: {e}; body preview: {preview}");
+        eprintln!("[swarm] {msg}");
+        msg
+    })?;
     let total = api.response.checkins.count;
+    let items_len = api.response.checkins.items.len();
+    eprintln!("[swarm] parsed count={total} items={items_len}");
     let items = api.response.checkins.items.into_iter().map(raw_to_checkin).collect();
     Ok((items, total))
 }
