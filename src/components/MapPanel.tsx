@@ -13,19 +13,47 @@ const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
 const PAPER_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: 'geometry', stylers: [{ color: '#ede5d2' }] },
   { elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#ede5d2' }] },
+  // Re-enable just the labels we want, with strong contrast
+  { elementType: 'labels.text.fill', stylers: [{ color: '#3d3225' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f3ecd9' }, { weight: 3 }] },
+  { featureType: 'administrative.country', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#2a2218' }] },
+  { featureType: 'administrative.province', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#3d3225' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#3d3225' }] },
+  { featureType: 'administrative.neighborhood', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#5c4d3a' }] },
   { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#cdc4ad' }] },
-  { featureType: 'administrative.country', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#666' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#888' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#e3d8be' }] },
   { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#d4c39f' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dbd4c2' }] },
+  { featureType: 'water', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#6a5a47' }] },
   { featureType: 'landscape.man_made', stylers: [{ color: '#e8e0c8' }] },
 ]
+
+const PAPER_CLUSTER_RENDERER = {
+  render: ({ count, position }: { count: number; position: google.maps.LatLng }) => {
+    const r = 16 + Math.min(count, 50) * 0.25
+    const size = Math.ceil((r + 6) * 2)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${-size/2} ${-size/2} ${size} ${size}"><circle r="${r + 4}" fill="#FF9933" opacity="0.18"/><circle r="${r}" fill="white" stroke="#FF9933" stroke-width="2.2"/></svg>`
+    return new google.maps.Marker({
+      position,
+      icon: {
+        url: `data:image/svg+xml;base64,${btoa(svg)}`,
+        scaledSize: new google.maps.Size(size, size),
+        anchor: new google.maps.Point(size / 2, size / 2),
+      },
+      label: {
+        text: String(count),
+        color: '#3d3225',
+        fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+        fontSize: '12px',
+        fontWeight: '600',
+      },
+      zIndex: 1000 + count,
+    })
+  },
+}
 
 function pinIcon(color: string, selected: boolean): google.maps.Icon {
   const scale = selected ? 1.25 : 1
@@ -51,8 +79,11 @@ export default function MapPanel() {
   const [mapsReady, setMapsReady] = useState(false)
   const filteredCheckins = useFilteredCheckins()
   const prefs = useAppStore(s => s.prefs)
+  const filters = useAppStore(s => s.filters)
   const selectedCheckinId = useAppStore(s => s.selectedCheckinId)
   const setSelectedCheckinId = useAppStore(s => s.setSelectedCheckinId)
+  const initialFilterKey = useRef<string | null>(null)
+  const filterKey = `${filters.city ?? ''}|${filters.datePreset}|${[...filters.cats].sort().join(',')}`
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
@@ -72,7 +103,7 @@ export default function MapPanel() {
         fullscreenControl: false,
         zoomControl: true,
       })
-      clusterer.current = new MarkerClusterer({ map: mapInstance.current })
+      clusterer.current = new MarkerClusterer({ map: mapInstance.current, renderer: PAPER_CLUSTER_RENDERER })
       mapInstance.current.addListener('idle', () => {
         const center = mapInstance.current!.getCenter()
         const zoom = mapInstance.current!.getZoom()
@@ -130,6 +161,31 @@ export default function MapPanel() {
       }
     }
   }, [selectedCheckinId, mapsReady])
+
+  // Refit map to filtered pins when filters change (but skip the initial render
+  // so the saved prefs view is preserved on startup)
+  useEffect(() => {
+    if (!mapsReady || !mapInstance.current) return
+    if (initialFilterKey.current === null) {
+      initialFilterKey.current = filterKey
+      return
+    }
+    if (initialFilterKey.current === filterKey) return
+    initialFilterKey.current = filterKey
+
+    const withCoords = filteredCheckins.filter(c => c.lat != null && c.lng != null)
+    if (withCoords.length === 0) return
+
+    const bounds = new google.maps.LatLngBounds()
+    for (const c of withCoords) bounds.extend({ lat: c.lat!, lng: c.lng! })
+
+    if (withCoords.length === 1) {
+      mapInstance.current.panTo(bounds.getCenter())
+      mapInstance.current.setZoom(14)
+    } else {
+      mapInstance.current.fitBounds(bounds, 64)
+    }
+  }, [filterKey, mapsReady])
 
   const selected = selectedCheckinId ? filteredCheckins.find(c => c.id === selectedCheckinId) ?? null : null
 

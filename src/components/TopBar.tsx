@@ -1,7 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
 
-const TRAFFIC = { width: 11, height: 11, borderRadius: '50%', border: '0.5px solid rgba(0,0,0,0.08)' } as const
+// Make a region undraggable so its click/hover events work
+const NO_DRAG: React.CSSProperties = { ['WebkitAppRegion' as any]: 'no-drag' }
+// Make a region act as the window's draggable handle
+const DRAG: React.CSSProperties = { ['WebkitAppRegion' as any]: 'drag' }
 
 export default function TopBar() {
   const panelView = useAppStore(s => s.panelView)
@@ -20,22 +23,17 @@ export default function TopBar() {
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', padding: '0 22px',
-      height: 60, borderBottom: '1px solid rgba(0,0,0,0.1)',
+      ...DRAG,
+      display: 'flex', alignItems: 'center', padding: '0 22px 0 86px',
+      height: 52, borderBottom: '1px solid rgba(0,0,0,0.1)',
       background: 'var(--accent)', flexWrap: 'nowrap', position: 'relative',
       flexShrink: 0,
     }}>
-      <div style={{ display: 'flex', gap: 7, flexShrink: 0, marginRight: 18 }}>
-        <span style={{ ...TRAFFIC, background: '#ff5f57' }} />
-        <span style={{ ...TRAFFIC, background: '#febc2e' }} />
-        <span style={{ ...TRAFFIC, background: '#28c840' }} />
-      </div>
-
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 18, letterSpacing: -0.5, color: '#ffffff', marginRight: 28, flexShrink: 0 }}>
         Swarm
       </div>
 
-      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: 8, padding: 3, gap: 2 }}>
+      <div style={{ ...NO_DRAG, position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: 8, padding: 3, gap: 2 }}>
         {([['timeline', 'Check-ins'], ['stats', 'Analytics']] as const).map(([key, label]) => (
           <button
             key={key}
@@ -58,6 +56,7 @@ export default function TopBar() {
       <div style={{ flex: 1 }} />
 
       <div style={{
+        ...NO_DRAG,
         display: 'flex', alignItems: 'center', gap: 8, width: 230,
         height: 32, padding: '0 12px', borderRadius: 6,
         border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.18)', flexShrink: 0,
@@ -84,6 +83,7 @@ export default function TopBar() {
       </div>
 
       <div style={{
+        ...NO_DRAG,
         display: 'inline-flex', alignItems: 'center', gap: 7, marginLeft: 14,
         fontFamily: 'var(--mono)', fontSize: 10, color: 'rgba(255,255,255,0.85)', flexShrink: 0,
       }}>

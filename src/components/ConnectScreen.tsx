@@ -24,30 +24,20 @@ export default function ConnectScreen() {
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 28, minHeight: '100vh',
+      width: '100vw', height: '100vh', overflow: 'hidden',
+      background: 'var(--surface)', position: 'relative',
+      display: 'flex', flexDirection: 'column',
+      ['WebkitAppRegion' as any]: 'drag',
     }}>
-      <div style={{
-        width: '100%', maxWidth: 1380, height: 'min(880px, calc(100vh - 56px))',
-        borderRadius: 14, overflow: 'hidden',
-        boxShadow: '0 0 0 1px rgba(0,0,0,0.08), 0 24px 60px rgba(40,30,10,0.18)',
-        background: 'var(--surface)', position: 'relative',
-        display: 'flex', flexDirection: 'column',
-      }}>
-        <div style={{ height: 40, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', borderBottom: '1px solid var(--line-2)' }}>
-          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57', border: '0.5px solid rgba(0,0,0,0.1)' }} />
-          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#febc2e', border: '0.5px solid rgba(0,0,0,0.1)' }} />
-          <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#28c840', border: '0.5px solid rgba(0,0,0,0.1)' }} />
-          <div style={{ flex: 1 }} />
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>
-            v0.1 · not signed in
-          </div>
-        </div>
+      {/* Spacer for OS title bar overlay so traffic lights have a non-content backdrop */}
+      <div style={{ height: 32, flexShrink: 0 }} />
 
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.05fr 1fr', minHeight: 0 }}>
-          <PitchColumn />
-          <ConnectColumn connecting={connecting} error={error} onConnect={handleConnect} />
-        </div>
+      <div style={{
+        flex: 1, display: 'grid', gridTemplateColumns: '1.05fr 1fr', minHeight: 0,
+        ['WebkitAppRegion' as any]: 'no-drag',
+      }}>
+        <PitchColumn />
+        <ConnectColumn connecting={connecting} error={error} onConnect={handleConnect} />
       </div>
     </div>
   )
