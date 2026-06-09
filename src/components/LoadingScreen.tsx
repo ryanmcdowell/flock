@@ -15,9 +15,8 @@ export default function LoadingScreen() {
       width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative',
       background: 'var(--surface)',
       display: 'flex', flexDirection: 'column',
-      ['WebkitAppRegion' as any]: 'drag',
     }}>
-      <div style={{ height: 52, background: 'var(--accent)', flexShrink: 0 }} />
+      <div data-tauri-drag-region style={{ height: 52, background: 'var(--accent)', flexShrink: 0 }} />
       <SyncErrorBanner />
       <div style={{ flex: 1 }} />
 
@@ -25,7 +24,6 @@ export default function LoadingScreen() {
         position: 'absolute', inset: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(242,236,224,0.88)', backdropFilter: 'blur(8px)',
-        ['WebkitAppRegion' as any]: 'no-drag',
       }}>
         <div style={{
           width: 380, padding: '32px 32px 28px', background: 'var(--surface)',

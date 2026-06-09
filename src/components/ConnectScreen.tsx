@@ -27,15 +27,11 @@ export default function ConnectScreen() {
       width: '100vw', height: '100vh', overflow: 'hidden',
       background: 'var(--surface)', position: 'relative',
       display: 'flex', flexDirection: 'column',
-      ['WebkitAppRegion' as any]: 'drag',
     }}>
       {/* Spacer for OS title bar overlay so traffic lights have a non-content backdrop */}
-      <div style={{ height: 32, flexShrink: 0 }} />
+      <div data-tauri-drag-region style={{ height: 32, flexShrink: 0 }} />
 
-      <div style={{
-        flex: 1, display: 'grid', gridTemplateColumns: '1.05fr 1fr', minHeight: 0,
-        ['WebkitAppRegion' as any]: 'no-drag',
-      }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.05fr 1fr', minHeight: 0 }}>
         <PitchColumn />
         <ConnectColumn connecting={connecting} error={error} onConnect={handleConnect} />
       </div>
