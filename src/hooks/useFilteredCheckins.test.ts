@@ -1,41 +1,42 @@
 import { describe, it, expect } from 'vitest'
 import { filterCheckins } from './useFilteredCheckins'
-import type { CheckIn } from '../types'
+import { ALL_CATS } from '../categories'
+import type { CheckIn, Filters } from '../types'
 
-const ci = (id: string, name: string, city: string, ts: number, note?: string): CheckIn => ({
+const ci = (id: string, name: string, city: string, ts: number, note: string | null = null, category: string | null = null): CheckIn => ({
   id, venue_id: null, venue_name: name, venue_address: null, venue_city: city,
-  venue_country: null, venue_category: null, lat: null, lng: null,
+  venue_country: null, venue_category: category, lat: null, lng: null,
   checked_in_at: ts, note: note ?? null, swarm_url: null,
 })
 
+const NO_FILTERS: Filters = { datePreset: 'all', city: null, cats: new Set(ALL_CATS) }
+
 describe('filterCheckins', () => {
   const checkins = [
-    ci('1', 'Blue Bottle', 'San Francisco', 1000),
-    ci('2', 'Tartine', 'San Francisco', 2000, 'great croissants'),
-    ci('3', 'Russ & Daughters', 'New York', 3000),
+    ci('1', 'Blue Bottle', 'San Francisco', 1000, null, 'Coffee Shop'),
+    ci('2', 'Tartine', 'San Francisco', 2000, 'great croissants', 'Bakery'),
+    ci('3', 'Russ & Daughters', 'New York', 3000, null, 'Deli'),
   ]
 
   it('filters by search query on venue name', () => {
-    const result = filterCheckins(checkins, 'blue', { dateRange: { start: null, end: null }, city: null })
-    expect(result.map(c => c.id)).toEqual(['1'])
+    expect(filterCheckins(checkins, 'blue', NO_FILTERS).map(c => c.id)).toEqual(['1'])
   })
 
   it('filters by search query on note', () => {
-    const result = filterCheckins(checkins, 'croissant', { dateRange: { start: null, end: null }, city: null })
-    expect(result.map(c => c.id)).toEqual(['2'])
+    expect(filterCheckins(checkins, 'croissant', NO_FILTERS).map(c => c.id)).toEqual(['2'])
   })
 
   it('filters by city', () => {
-    const result = filterCheckins(checkins, '', { dateRange: { start: null, end: null }, city: 'New York' })
+    const result = filterCheckins(checkins, '', { ...NO_FILTERS, city: 'New York' })
     expect(result.map(c => c.id)).toEqual(['3'])
   })
 
-  it('filters by date range', () => {
-    const result = filterCheckins(checkins, '', { dateRange: { start: 1500, end: 2500 }, city: null })
-    expect(result.map(c => c.id)).toEqual(['2'])
+  it('filters by category', () => {
+    const result = filterCheckins(checkins, '', { ...NO_FILTERS, cats: new Set(['coffee']) })
+    expect(result.map(c => c.id)).toEqual(['1'])
   })
 
   it('returns all when no filters', () => {
-    expect(filterCheckins(checkins, '', { dateRange: { start: null, end: null }, city: null })).toHaveLength(3)
+    expect(filterCheckins(checkins, '', NO_FILTERS)).toHaveLength(3)
   })
 })

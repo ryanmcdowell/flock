@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from './index'
 import { act } from '@testing-library/react'
+import { ALL_CATS } from '../categories'
 
 describe('useAppStore', () => {
-  beforeEach(() => useAppStore.setState(useAppStore.getInitialState()))
+  beforeEach(() => useAppStore.setState((useAppStore as any).getInitialState()))
 
   it('sets search query', () => {
     act(() => useAppStore.getState().setSearchQuery('coffee'))
@@ -15,13 +16,18 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().selectedCheckinId).toBe('abc123')
   })
 
-  it('clears filters', () => {
+  it('clears filters and search', () => {
     act(() => {
-      useAppStore.getState().setFilters({ dateRange: { start: 100, end: 200 }, city: 'SF' })
+      useAppStore.getState().setFilters({
+        datePreset: '30d', city: 'SF', cats: new Set(['coffee']),
+      })
+      useAppStore.getState().setSearchQuery('blue bottle')
       useAppStore.getState().clearFilters()
     })
-    const { filters } = useAppStore.getState()
+    const { filters, searchQuery } = useAppStore.getState()
     expect(filters.city).toBeNull()
-    expect(filters.dateRange.start).toBeNull()
+    expect(filters.datePreset).toBe('all')
+    expect(filters.cats.size).toBe(ALL_CATS.length)
+    expect(searchQuery).toBe('')
   })
 })

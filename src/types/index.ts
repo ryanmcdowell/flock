@@ -1,3 +1,5 @@
+import type { CatKey } from '../categories'
+
 export interface CheckIn {
   id: string
   venue_id: string | null
@@ -32,9 +34,12 @@ export interface SyncProgress {
   total: number
 }
 
+export type DatePreset = 'all' | '30d' | '90d' | '365d'
+
 export interface Filters {
-  dateRange: { start: number | null; end: number | null }
+  datePreset: DatePreset
   city: string | null
+  cats: Set<CatKey>
 }
 
 export type AppView = 'connect' | 'loading' | 'main'

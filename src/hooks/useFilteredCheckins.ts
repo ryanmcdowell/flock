@@ -1,6 +1,20 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../store'
-import type { CheckIn, Filters } from '../types'
+import { mapCategory } from '../categories'
+import type { CheckIn, Filters, DatePreset } from '../types'
+
+const PRESET_DAYS: Record<DatePreset, number | null> = {
+  'all': null,
+  '30d': 30,
+  '90d': 90,
+  '365d': 365,
+}
+
+export function presetCutoff(preset: DatePreset, now = Date.now()): number | null {
+  const days = PRESET_DAYS[preset]
+  if (days == null) return null
+  return Math.floor(now / 1000) - days * 86400
+}
 
 export function filterCheckins(checkins: CheckIn[], query: string, filters: Filters): CheckIn[] {
   let result = checkins
@@ -15,11 +29,12 @@ export function filterCheckins(checkins: CheckIn[], query: string, filters: Filt
   if (filters.city) {
     result = result.filter(c => c.venue_city === filters.city)
   }
-  if (filters.dateRange.start !== null) {
-    result = result.filter(c => c.checked_in_at >= filters.dateRange.start!)
+  const cutoff = presetCutoff(filters.datePreset)
+  if (cutoff !== null) {
+    result = result.filter(c => c.checked_in_at >= cutoff)
   }
-  if (filters.dateRange.end !== null) {
-    result = result.filter(c => c.checked_in_at <= filters.dateRange.end!)
+  if (filters.cats.size < 6) {
+    result = result.filter(c => filters.cats.has(mapCategory(c.venue_category)))
   }
   return result
 }

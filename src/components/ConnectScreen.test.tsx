@@ -6,13 +6,13 @@ import ConnectScreen from './ConnectScreen'
 describe('ConnectScreen', () => {
   it('renders connect button', () => {
     render(<ConnectScreen />)
-    expect(screen.getByRole('button', { name: /connect to swarm/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /connect with foursquare/i })).toBeInTheDocument()
   })
 
   it('calls start_oauth on click', async () => {
     vi.mocked(invoke).mockResolvedValue(undefined)
     render(<ConnectScreen />)
-    fireEvent.click(screen.getByRole('button', { name: /connect to swarm/i }))
+    fireEvent.click(screen.getByRole('button', { name: /connect with foursquare/i }))
     expect(invoke).toHaveBeenCalledWith('start_oauth')
   })
 })
