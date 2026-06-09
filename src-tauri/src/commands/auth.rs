@@ -14,22 +14,25 @@ pub async fn check_auth_status() -> Result<bool, String> {
 
 #[tauri::command]
 pub async fn start_oauth() -> Result<(), String> {
+    eprintln!("[oauth] start_oauth invoked");
     let auth_url = format!(
         "https://foursquare.com/oauth2/authenticate?client_id={}&redirect_uri={}&response_type=code",
         CLIENT_ID, REDIRECT_URI
     );
+    eprintln!("[oauth] auth_url length={}", auth_url.len());
 
-    // Bind listener BEFORE opening browser to avoid race condition
     let code = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        eprintln!("[oauth] binding listener on 127.0.0.1:7878");
         let server = tiny_http::Server::http("127.0.0.1:7878")
             .map_err(|e| format!("OAuth listener failed: {e}"))?;
-
-        // Open browser only after server is bound
+        eprintln!("[oauth] listener bound; opening browser");
         open::that(&auth_url).map_err(|e| e.to_string())?;
 
+        eprintln!("[oauth] waiting for callback (120s timeout)");
         let request = server.recv_timeout(std::time::Duration::from_secs(120))
             .map_err(|e| e.to_string())?
             .ok_or("OAuth timed out after 120 seconds — please try again")?;
+        eprintln!("[oauth] callback received: {}", request.url());
 
         let raw_url = request.url().to_string();
         let parsed = url::Url::parse(&format!("http://localhost{}", raw_url))
@@ -40,6 +43,7 @@ pub async fn start_oauth() -> Result<(), String> {
             let desc = params.get("error_description")
                 .map(|s| s.as_ref())
                 .unwrap_or(err.as_ref());
+            eprintln!("[oauth] error param in callback: {err}: {desc}");
             request.respond(tiny_http::Response::from_string(
                 "<html><body><h2>Authorization denied. You can close this tab.</h2></body></html>"
             )).ok();
@@ -49,29 +53,57 @@ pub async fn start_oauth() -> Result<(), String> {
         let code = params.get("code")
             .ok_or("No code in OAuth callback")?
             .to_string();
+        eprintln!("[oauth] code extracted (len={})", code.len());
 
         request.respond(tiny_http::Response::from_string(
             "<html><body><h2>Connected! You can close this tab.</h2></body></html>"
         )).ok();
         Ok(code)
-    }).await.map_err(|e| e.to_string())??;
+    }).await.map_err(|e| {
+        let msg = format!("spawn_blocking join failed: {e}");
+        eprintln!("[oauth] {msg}");
+        msg
+    })??;
 
-    let resp: serde_json::Value = Client::new()
+    eprintln!("[oauth] exchanging code for token");
+    let resp = Client::new()
         .get("https://foursquare.com/oauth2/access_token")
         .query(&[
             ("client_id", CLIENT_ID), ("client_secret", CLIENT_SECRET),
             ("grant_type", "authorization_code"),
             ("redirect_uri", REDIRECT_URI), ("code", &code),
         ])
-        .send().await.map_err(|e| e.to_string())?
-        .json().await.map_err(|e| e.to_string())?;
+        .send().await.map_err(|e| {
+            let msg = format!("token endpoint send failed: {e}");
+            eprintln!("[oauth] {msg}");
+            msg
+        })?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| e.to_string())?;
+    eprintln!("[oauth] token endpoint status={status} body_len={}", body.len());
+    let resp_json: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+        let preview: String = body.chars().take(300).collect();
+        let msg = format!("token JSON parse failed: {e}; body preview: {preview}");
+        eprintln!("[oauth] {msg}");
+        msg
+    })?;
 
-    let token = resp["access_token"].as_str()
-        .ok_or("No access_token in Foursquare response")?
-        .to_string();
+    let token = resp_json["access_token"].as_str().ok_or_else(|| {
+        let preview: String = body.chars().take(300).collect();
+        let msg = format!("No access_token in Foursquare response. body preview: {preview}");
+        eprintln!("[oauth] {msg}");
+        msg
+    })?.to_string();
+    eprintln!("[oauth] access_token received (len={})", token.len());
 
     tokio::task::spawn_blocking(move || keychain::store_token(&token))
-        .await.map_err(|e| e.to_string())?
+        .await.map_err(|e| {
+            let msg = format!("store_token join failed: {e}");
+            eprintln!("[oauth] {msg}");
+            msg
+        })??;
+    eprintln!("[oauth] start_oauth completed");
+    Ok(())
 }
 
 #[tauri::command]
