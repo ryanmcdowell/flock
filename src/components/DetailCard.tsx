@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
 import { CAT_STYLE, mapCategory } from '../categories'
 import type { CheckIn } from '../types'
@@ -95,15 +96,18 @@ export default function DetailCard({ checkin, onClose }: Props) {
 }
 
 function LinkRow({ label, href }: { label: string; href: string }) {
+  function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault()
+    invoke('open_url', { url: href }).catch((err) => console.error('open_url failed:', err))
+  }
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      onClick={handleClick}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         fontSize: 12, color: 'var(--ink-2)', textDecoration: 'none', padding: '3px 0',
-        fontFamily: 'var(--sans)',
+        fontFamily: 'var(--sans)', cursor: 'pointer',
       }}
       onMouseEnter={e => (e.currentTarget.style.color = 'var(--ink)')}
       onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-2)')}
