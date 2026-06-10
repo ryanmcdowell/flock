@@ -154,7 +154,16 @@ export default function MapPanel() {
         fullscreenControl: false,
         zoomControl: true,
       })
-      clusterer.current = new MarkerClusterer({ map: mapInstance.current, renderer: PAPER_CLUSTER_RENDERER })
+      clusterer.current = new MarkerClusterer({
+        map: mapInstance.current,
+        renderer: PAPER_CLUSTER_RENDERER,
+        onClusterClick: (_event, cluster, map) => {
+          // Drop any selected check-in when the user dives into a cluster — the
+          // previous selection probably isn't where they're looking anymore.
+          useAppStore.getState().setSelectedCheckinId(null)
+          if (cluster.bounds) map.fitBounds(cluster.bounds)
+        },
+      })
 
       mapInstance.current.addListener('idle', () => {
         const center = mapInstance.current!.getCenter()

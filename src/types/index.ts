@@ -42,5 +42,10 @@ export interface Filters {
   cats: Set<CatKey>
 }
 
+export interface UserProfile {
+  name: string
+  photo_url: string | null
+}
+
 export type AppView = 'connect' | 'loading' | 'main'
 export type PanelView = 'timeline' | 'stats'

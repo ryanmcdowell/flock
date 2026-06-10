@@ -33,6 +33,7 @@ pub fn run() {
             commands::prefs::update_sync_state,
             commands::sync::start_sync,
             commands::system::open_url,
+            commands::user::fetch_user_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { ALL_CATS } from '../categories'
-import type { CheckIn, Prefs, SyncProgress, Filters, AppView, PanelView } from '../types'
+import type { CheckIn, Prefs, SyncProgress, Filters, AppView, PanelView, UserProfile } from '../types'
 
 interface AppState {
   // Data
@@ -15,6 +15,7 @@ interface AppState {
   filters: Filters
   syncProgress: SyncProgress | null
   syncError: string | null
+  userProfile: UserProfile | null
   // Actions
   setCheckins: (checkins: CheckIn[]) => void
   setPrefs: (prefs: Prefs) => void
@@ -27,6 +28,7 @@ interface AppState {
   clearFilters: () => void
   setSyncProgress: (p: SyncProgress | null) => void
   setSyncError: (e: string | null) => void
+  setUserProfile: (p: UserProfile | null) => void
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -55,6 +57,7 @@ export const useAppStore = create<AppState>()((set) => ({
   filters: DEFAULT_FILTERS,
   syncProgress: null,
   syncError: null,
+  userProfile: null,
   setCheckins: (checkins) => set({ checkins }),
   setPrefs: (prefs) => set({ prefs }),
   setAppView: (appView) => set({ appView }),
@@ -68,6 +71,7 @@ export const useAppStore = create<AppState>()((set) => ({
   clearFilters: () => set({ filters: freshDefaults(), searchQuery: '', selectedCheckinId: null }),
   setSyncProgress: (syncProgress) => set({ syncProgress }),
   setSyncError: (syncError) => set({ syncError }),
+  setUserProfile: (userProfile) => set({ userProfile }),
 }))
 
 // Expose getInitialState for test resets
@@ -75,5 +79,5 @@ export const useAppStore = create<AppState>()((set) => ({
   checkins: [], prefs: DEFAULT_PREFS, appView: 'loading' as AppView,
   panelView: 'timeline' as PanelView, selectedCheckinId: null, hoveredCheckinId: null,
   searchQuery: '', filters: { ...freshDefaults() }, syncProgress: null,
-  syncError: null,
+  syncError: null, userProfile: null,
 })

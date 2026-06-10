@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useFilteredCheckins } from '../hooks/useFilteredCheckins'
 import { useAppStore } from '../store'
 import { CAT_STYLE, mapCategory, type CatKey } from '../categories'
 import type { CheckIn } from '../types'
@@ -72,38 +71,45 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
 }
 
 export default function StatsPanel() {
-  const filtered = useFilteredCheckins()
+  // Analytics always reflects the full check-in history regardless of sidebar
+  // filters so the numbers are stable.
   const all = useAppStore(s => s.checkins)
   const [granularity, setGranularity] = useState<'Monthly' | 'Yearly'>('Monthly')
-  const stats = useMemo(() => computeStats(filtered, all), [filtered, all])
+  const stats = useMemo(() => computeStats(all, all), [all])
 
   const chartData = granularity === 'Monthly' ? stats.byMonth : stats.byYear
+
+  // minWidth: 0 on grid children is what lets the inner overflow-x:auto
+  // actually work (CSS grid children default to min-width:auto = content size).
+  const gridChild: React.CSSProperties = { minWidth: 0 }
 
   return (
     <div style={{
       padding: '28px 32px', overflowY: 'auto', height: '100%',
-      display: 'flex', flexDirection: 'column', gap: 24,
+      display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0,
     }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-        <StatCard label="Total check-ins" value={stats.total.toLocaleString()} />
-        <StatCard label="Cities visited" value={stats.cityCount.toLocaleString()} />
+        <div style={gridChild}><StatCard label="Total check-ins" value={stats.total.toLocaleString()} /></div>
+        <div style={gridChild}><StatCard label="Cities visited" value={stats.cityCount.toLocaleString()} /></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
-        <ChartCard
-          title="Check-ins over time"
-          right={
-            <SegControl
-              opts={['Monthly', 'Yearly']}
-              active={granularity}
-              onChange={v => setGranularity(v as 'Monthly' | 'Yearly')}
-            />
-          }
-        >
-          <BarChart data={chartData} />
-        </ChartCard>
+        <div style={gridChild}>
+          <ChartCard
+            title="Check-ins over time"
+            right={
+              <SegControl
+                opts={['Monthly', 'Yearly']}
+                active={granularity}
+                onChange={v => setGranularity(v as 'Monthly' | 'Yearly')}
+              />
+            }
+          >
+            <BarChart data={chartData} />
+          </ChartCard>
+        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ ...gridChild, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <ChartCard title="Top cities">
             <CityLeaderboard rows={stats.topCities} />
           </ChartCard>

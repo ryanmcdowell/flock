@@ -2,7 +2,16 @@ import { useEffect } from 'react'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
-import type { CheckIn, Prefs, SyncProgress } from '../types'
+import type { CheckIn, Prefs, SyncProgress, UserProfile } from '../types'
+
+async function refreshUserProfile() {
+  try {
+    const profile = await invoke<UserProfile>('fetch_user_profile')
+    useAppStore.getState().setUserProfile(profile)
+  } catch (e) {
+    console.error('fetch_user_profile failed:', e)
+  }
+}
 
 export async function loadCachedAndSync() {
   const { setCheckins, setPrefs, setAppView, setSyncError } = useAppStore.getState()
@@ -14,6 +23,8 @@ export async function loadCachedAndSync() {
   setCheckins(checkins)
   setPrefs(prefs)
   setAppView(checkins.length > 0 ? 'main' : 'loading')
+  // Fire-and-forget — UI doesn't block on the avatar.
+  refreshUserProfile()
   invoke('start_sync').catch((e) => {
     console.error('start_sync failed:', e)
     useAppStore.getState().setSyncError(String(e))
