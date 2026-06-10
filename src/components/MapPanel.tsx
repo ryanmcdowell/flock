@@ -11,23 +11,56 @@ import type { Prefs } from '../types'
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string
 
 const PAPER_STYLES: google.maps.MapTypeStyle[] = [
+  // Base land
   { elementType: 'geometry', stylers: [{ color: '#ede5d2' }] },
+
+  // Hide everything by default, then opt features back in with subtle styling
   { elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#3d3225' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f3ecd9' }, { weight: 3 }] },
-  { featureType: 'administrative.country', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#2a2218' }] },
-  { featureType: 'administrative.province', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#3d3225' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#3d3225' }] },
-  { featureType: 'administrative.neighborhood', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#5c4d3a' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#cdc4ad' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#ede5d2' }, { weight: 2.5 }] },
+
+  // Country labels — the most prominent tier
+  { featureType: 'administrative.country', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: '#2a2218' }] },
+
+  // State / province labels — muted, so they recede when zoomed out
+  { featureType: 'administrative.province', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.province', elementType: 'labels.text.fill', stylers: [{ color: '#a89878' }] },
+
+  // City labels — primary at street zoom
+  { featureType: 'administrative.locality', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#3d3225' }] },
+
+  // Neighborhoods — too noisy at default zooms, hide entirely
+  { featureType: 'administrative.neighborhood', stylers: [{ visibility: 'off' }] },
+
+  // Admin boundary lines
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#c5b89c' }, { weight: 0.8 }] },
+
+  // POI off
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+
+  // Roads: tonal hierarchy from highway down to local
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#e3d8be' }] },
-  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#d4c39f' }] },
+  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  // Major road labels for navigation context at city zoom
+  { featureType: 'road.arterial', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#8a7a5e' }] },
+  { featureType: 'road.highway', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#6b5a42' }] },
+  { featureType: 'road.highway', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+
+  // Transit off
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+
+  // Water
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dbd4c2' }] },
-  { featureType: 'water', elementType: 'labels.text', stylers: [{ visibility: 'on' }, { color: '#6a5a47' }] },
+  { featureType: 'water', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#8a7a5e' }] },
+
+  // Land textures
   { featureType: 'landscape.man_made', stylers: [{ color: '#e8e0c8' }] },
+  { featureType: 'landscape.natural.landcover', stylers: [{ color: '#e8dec8' }] },
 ]
 
 const PAPER_CLUSTER_RENDERER = {
