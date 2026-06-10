@@ -230,24 +230,32 @@ export default function MapPanel() {
     }
     if (selectedCheckinId) {
       const entry = markersById.current.get(selectedCheckinId)
-      if (entry) {
+      const map = mapInstance.current
+      if (entry && map) {
         entry.marker.setIcon(getPinIcon(entry.color, true))
-        mapInstance.current?.panTo({ lat: entry.lat, lng: entry.lng })
+        map.panTo({ lat: entry.lat, lng: entry.lng })
+        // Zoom in to neighborhood level if currently zoomed out further.
+        const NEIGHBORHOOD_ZOOM = 15
+        if ((map.getZoom() ?? 0) < NEIGHBORHOOD_ZOOM) {
+          map.setZoom(NEIGHBORHOOD_ZOOM)
+        }
       }
     }
     prevSelectedId.current = selectedCheckinId
   }, [selectedCheckinId, mapsReady])
 
   // Refit map to filtered pins on first data arrival and whenever filters change.
-  // We don't restore the saved map position anymore; the default 30-day view
-  // defines the "I just opened the app" state instead.
+  // Use the live filteredCheckins here, NOT deferredFiltered, so the data we fit
+  // to matches the filterKey we're gating on — otherwise a click on Brooklyn
+  // would briefly fit to the previous city's lagging data and then refuse to
+  // re-fit when the deferred value caught up.
   useEffect(() => {
     if (!mapsReady || !mapInstance.current) return
-    if (deferredFiltered.length === 0) return
+    if (filteredCheckins.length === 0) return
     if (lastFitKey.current === filterKey) return
     lastFitKey.current = filterKey
 
-    const withCoords = deferredFiltered.filter(c => c.lat != null && c.lng != null)
+    const withCoords = filteredCheckins.filter(c => c.lat != null && c.lng != null)
     if (withCoords.length === 0) return
     const bounds = new google.maps.LatLngBounds()
     for (const c of withCoords) bounds.extend({ lat: c.lat!, lng: c.lng! })
@@ -257,7 +265,7 @@ export default function MapPanel() {
     } else {
       mapInstance.current.fitBounds(bounds, 64)
     }
-  }, [filterKey, mapsReady, deferredFiltered])
+  }, [filterKey, mapsReady, filteredCheckins])
 
   const selected = selectedCheckinId
     ? filteredCheckins.find(c => c.id === selectedCheckinId) ?? null

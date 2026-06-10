@@ -62,8 +62,10 @@ export const useAppStore = create<AppState>()((set) => ({
   setSelectedCheckinId: (selectedCheckinId) => set({ selectedCheckinId }),
   setHoveredCheckinId: (hoveredCheckinId) => set({ hoveredCheckinId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setFilters: (filters) => set({ filters }),
-  clearFilters: () => set({ filters: freshDefaults(), searchQuery: '' }),
+  // Changing filters clears any stale place selection so the map and timeline
+  // never highlight a check-in that's no longer in the filtered view.
+  setFilters: (filters) => set({ filters, selectedCheckinId: null }),
+  clearFilters: () => set({ filters: freshDefaults(), searchQuery: '', selectedCheckinId: null }),
   setSyncProgress: (syncProgress) => set({ syncProgress }),
   setSyncError: (syncError) => set({ syncError }),
 }))
