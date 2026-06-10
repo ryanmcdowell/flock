@@ -15,6 +15,22 @@ function fmtTime(ts: number) {
   return new Date(ts * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase()
 }
 
+function mapsHref(c: CheckIn): string | null {
+  // Prefer a name-based search so Maps lands on the actual venue's place card.
+  // Anchor with coordinates so the right pin is picked even when the venue
+  // name is generic (e.g. "Starbucks").
+  const parts = [c.venue_name, c.venue_address, c.venue_city, c.venue_country].filter(Boolean) as string[]
+  if (parts.length > 0) {
+    const q = encodeURIComponent(parts.join(', '))
+    const center = c.lat != null && c.lng != null ? `&ll=${c.lat},${c.lng}` : ''
+    return `https://www.google.com/maps/search/?api=1&query=${q}${center}`
+  }
+  if (c.lat != null && c.lng != null) {
+    return `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`
+  }
+  return null
+}
+
 export default function DetailCard({ checkin, onClose }: Props) {
   const prefs = useAppStore(s => s.prefs)
   const cat = mapCategory(checkin.venue_category)
@@ -85,8 +101,8 @@ export default function DetailCard({ checkin, onClose }: Props) {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 12, borderTop: '1px solid var(--line-2)' }}>
-          {checkin.lat != null && checkin.lng != null && (
-            <LinkRow label="Open in Maps" href={`https://www.google.com/maps/search/?api=1&query=${checkin.lat},${checkin.lng}`} />
+          {mapsHref(checkin) && (
+            <LinkRow label="Open in Maps" href={mapsHref(checkin)!} />
           )}
           {checkin.swarm_url && <LinkRow label="View on Swarm" href={checkin.swarm_url} />}
         </div>
