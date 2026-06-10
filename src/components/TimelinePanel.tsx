@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, memo } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, memo } from 'react'
 import { useAppStore } from '../store'
 import { useFilteredCheckins } from '../hooks/useFilteredCheckins'
 import { CAT_STYLE, mapCategory } from '../categories'
@@ -13,6 +13,9 @@ function fmtTime(ts: number) {
 
 export default function TimelinePanel() {
   const filteredCheckins = useFilteredCheckins()
+  // Defer the heavy timeline render so a filter click can update the sidebar
+  // selection state immediately, then materialize the list as low-priority work.
+  const deferredCheckins = useDeferredValue(filteredCheckins)
   const selectedCheckinId = useAppStore(s => s.selectedCheckinId)
   const setSelectedCheckinId = useAppStore(s => s.setSelectedCheckinId)
   const setHoveredCheckinId = useAppStore(s => s.setHoveredCheckinId)
@@ -23,14 +26,14 @@ export default function TimelinePanel() {
 
   const groups = useMemo(() => {
     const g = new Map<string, CheckIn[]>()
-    const sorted = [...filteredCheckins].sort((a, b) => b.checked_in_at - a.checked_in_at)
+    const sorted = [...deferredCheckins].sort((a, b) => b.checked_in_at - a.checked_in_at)
     for (const c of sorted) {
       const key = fmtMonth(c.checked_in_at)
       if (!g.has(key)) g.set(key, [])
       g.get(key)!.push(c)
     }
     return [...g.entries()]
-  }, [filteredCheckins])
+  }, [deferredCheckins])
 
   useEffect(() => {
     if (!selectedCheckinId || !listRef.current) return
@@ -44,7 +47,7 @@ export default function TimelinePanel() {
     }
   }, [selectedCheckinId])
 
-  if (filteredCheckins.length === 0) {
+  if (deferredCheckins.length === 0) {
     return (
       <div style={{ padding: '64px 28px', textAlign: 'center', color: 'var(--ink-3)' }}>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 22, color: 'var(--ink-2)', marginBottom: 8 }}>
@@ -128,6 +131,9 @@ const TimelineRow = memo(function TimelineRow({
         background: isActive ? 'var(--bg)' : 'transparent',
         transition: 'background 100ms ease',
         gap: 14,
+        // Skip layout/paint work for offscreen rows; auto reserves estimated height.
+        contentVisibility: 'auto',
+        containIntrinsicSize: 'auto 76px',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingTop: 3, gap: 2 }}>

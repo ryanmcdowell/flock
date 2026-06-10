@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import { MarkerClusterer } from '@googlemaps/markerclusterer'
@@ -96,6 +96,9 @@ export default function MapPanel() {
   const selectedCheckinId = useAppStore(s => s.selectedCheckinId)
   const setSelectedCheckinId = useAppStore(s => s.setSelectedCheckinId)
   const filteredCheckins = useFilteredCheckins()
+  // Defer the heavy clusterer update so a filter click can paint the sidebar
+  // selection state and the timeline before we touch the map markers.
+  const deferredFiltered = useDeferredValue(filteredCheckins)
 
   const initialFilterKey = useRef<string | null>(null)
   const filterKey = `${filters.city ?? ''}|${filters.datePreset}|${[...filters.cats].sort().join(',')}`
@@ -167,16 +170,22 @@ export default function MapPanel() {
   }, [checkins, mapsReady])
 
   // Swap the clusterer's visible set when filters change. No marker reconstruction.
+  // Wrap in rAF so the cluster recompute waits for the browser to paint the click,
+  // and bail if a newer update lands before this one runs.
   useEffect(() => {
     if (!mapsReady || !clusterer.current) return
-    clusterer.current.clearMarkers()
-    const visible: google.maps.Marker[] = []
-    for (const c of filteredCheckins) {
-      const entry = markersById.current.get(c.id)
-      if (entry) visible.push(entry.marker)
-    }
-    clusterer.current.addMarkers(visible)
-  }, [filteredCheckins, mapsReady])
+    const handle = requestAnimationFrame(() => {
+      if (!clusterer.current) return
+      clusterer.current.clearMarkers()
+      const visible: google.maps.Marker[] = []
+      for (const c of deferredFiltered) {
+        const entry = markersById.current.get(c.id)
+        if (entry) visible.push(entry.marker)
+      }
+      clusterer.current.addMarkers(visible)
+    })
+    return () => cancelAnimationFrame(handle)
+  }, [deferredFiltered, mapsReady])
 
   // Selection — touch only the previously-selected and newly-selected markers (O(1)).
   useEffect(() => {
@@ -206,7 +215,7 @@ export default function MapPanel() {
     if (initialFilterKey.current === filterKey) return
     initialFilterKey.current = filterKey
 
-    const withCoords = filteredCheckins.filter(c => c.lat != null && c.lng != null)
+    const withCoords = deferredFiltered.filter(c => c.lat != null && c.lng != null)
     if (withCoords.length === 0) return
     const bounds = new google.maps.LatLngBounds()
     for (const c of withCoords) bounds.extend({ lat: c.lat!, lng: c.lng! })
