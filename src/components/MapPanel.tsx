@@ -100,7 +100,7 @@ export default function MapPanel() {
   // selection state and the timeline before we touch the map markers.
   const deferredFiltered = useDeferredValue(filteredCheckins)
 
-  const initialFilterKey = useRef<string | null>(null)
+  const lastFitKey = useRef<string | null>(null)
   const filterKey = `${filters.city ?? ''}|${filters.datePreset}|${[...filters.cats].sort().join(',')}`
 
   useEffect(() => {
@@ -205,15 +205,14 @@ export default function MapPanel() {
     prevSelectedId.current = selectedCheckinId
   }, [selectedCheckinId, mapsReady])
 
-  // Refit map to filtered pins when filters change (skip first run so saved prefs restore).
+  // Refit map to filtered pins on first data arrival and whenever filters change.
+  // We don't restore the saved map position anymore; the default 30-day view
+  // defines the "I just opened the app" state instead.
   useEffect(() => {
     if (!mapsReady || !mapInstance.current) return
-    if (initialFilterKey.current === null) {
-      initialFilterKey.current = filterKey
-      return
-    }
-    if (initialFilterKey.current === filterKey) return
-    initialFilterKey.current = filterKey
+    if (deferredFiltered.length === 0) return
+    if (lastFitKey.current === filterKey) return
+    lastFitKey.current = filterKey
 
     const withCoords = deferredFiltered.filter(c => c.lat != null && c.lng != null)
     if (withCoords.length === 0) return
@@ -225,7 +224,7 @@ export default function MapPanel() {
     } else {
       mapInstance.current.fitBounds(bounds, 64)
     }
-  }, [filterKey, mapsReady])
+  }, [filterKey, mapsReady, deferredFiltered])
 
   const selected = selectedCheckinId
     ? filteredCheckins.find(c => c.id === selectedCheckinId) ?? null

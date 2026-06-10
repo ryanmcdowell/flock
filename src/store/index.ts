@@ -30,7 +30,7 @@ interface AppState {
 }
 
 const DEFAULT_FILTERS: Filters = {
-  datePreset: 'all',
+  datePreset: '30d',
   city: null,
   cats: new Set(ALL_CATS),
 }
@@ -38,7 +38,7 @@ const DEFAULT_PREFS: Prefs = { show_categories: true, show_notes: true, map_lat:
 
 function freshDefaults() {
   return {
-    datePreset: 'all' as const,
+    datePreset: '30d' as const,
     city: null,
     cats: new Set(ALL_CATS),
   }
@@ -47,7 +47,7 @@ function freshDefaults() {
 export const useAppStore = create<AppState>()((set) => ({
   checkins: [],
   prefs: DEFAULT_PREFS,
-  appView: 'connect',
+  appView: 'loading',
   panelView: 'timeline',
   selectedCheckinId: null,
   hoveredCheckinId: null,
@@ -70,7 +70,7 @@ export const useAppStore = create<AppState>()((set) => ({
 
 // Expose getInitialState for test resets
 ;(useAppStore as any).getInitialState = () => ({
-  checkins: [], prefs: DEFAULT_PREFS, appView: 'connect' as AppView,
+  checkins: [], prefs: DEFAULT_PREFS, appView: 'loading' as AppView,
   panelView: 'timeline' as PanelView, selectedCheckinId: null, hoveredCheckinId: null,
   searchQuery: '', filters: { ...freshDefaults() }, syncProgress: null,
   syncError: null,

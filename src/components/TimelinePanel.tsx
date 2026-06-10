@@ -131,9 +131,6 @@ const TimelineRow = memo(function TimelineRow({
         background: isActive ? 'var(--bg)' : 'transparent',
         transition: 'background 100ms ease',
         gap: 14,
-        // Skip layout/paint work for offscreen rows; auto reserves estimated height.
-        contentVisibility: 'auto',
-        containIntrinsicSize: 'auto 76px',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingTop: 3, gap: 2 }}>
