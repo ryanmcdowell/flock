@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
 import { useMemo, useState } from 'react'
 import { useAppStore } from '../store'
 import { ALL_CATS, CAT_STYLE, mapCategory, type CatKey } from '../categories'
@@ -16,11 +15,9 @@ const CITY_INITIAL_LIMIT = 10
 
 export default function Sidebar() {
   const checkins = useAppStore(s => s.checkins)
-  const panelView = useAppStore(s => s.panelView)
   const filters = useAppStore(s => s.filters)
   const setFilters = useAppStore(s => s.setFilters)
   const clearFilters = useAppStore(s => s.clearFilters)
-  const userProfile = useAppStore(s => s.userProfile)
   const [showAllCities, setShowAllCities] = useState(false)
 
   const cities = useMemo(() => {
@@ -66,15 +63,6 @@ export default function Sidebar() {
     setFilters({ ...filters, cats: next })
   }
 
-  function handleSignOut() {
-    invoke('sign_out').then(() => {
-      useAppStore.getState().setCheckins([])
-      useAppStore.getState().setUserProfile(null)
-      useAppStore.getState().setAppView('connect')
-    }).catch(console.error)
-  }
-
-  const showFilters = panelView !== 'stats'
   const visibleCities = showAllCities ? cities : cities.slice(0, CITY_INITIAL_LIMIT)
   const hasMoreCities = cities.length > CITY_INITIAL_LIMIT
 
@@ -83,102 +71,75 @@ export default function Sidebar() {
       width: 240, flexShrink: 0,
       background: 'var(--surface)', borderRight: '1px solid var(--line)',
       display: 'flex', flexDirection: 'column', height: '100%',
+      overflowY: 'auto', padding: '28px 22px 28px', gap: 28,
     }}>
-      {/* Scrollable upper area */}
-      <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto',
-        padding: '28px 22px 14px', display: 'flex', flexDirection: 'column', gap: 28,
-      }}>
-        {showFilters ? (
-          <>
-            <SideSection label="Period">
-              {DATE_PRESETS.map(p => (
-                <RadioItem
-                  key={p.key}
-                  label={p.label}
-                  count={stats.byPreset[p.key]}
-                  selected={filters.datePreset === p.key}
-                  onClick={() => setDatePreset(p.key)}
-                />
-              ))}
-            </SideSection>
+      <SideSection label="Period">
+        {DATE_PRESETS.map(p => (
+          <RadioItem
+            key={p.key}
+            label={p.label}
+            count={stats.byPreset[p.key]}
+            selected={filters.datePreset === p.key}
+            onClick={() => setDatePreset(p.key)}
+          />
+        ))}
+      </SideSection>
 
-            <SideSection label="Place">
-              <RadioItem
-                label="All cities"
-                count={checkins.length}
-                selected={filters.city === null}
-                onClick={() => setCity(null)}
-              />
-              {visibleCities.map(({ city, count }) => (
-                <RadioItem
-                  key={city}
-                  label={city}
-                  count={count}
-                  selected={filters.city === city}
-                  onClick={() => setCity(city)}
-                />
-              ))}
-              {hasMoreCities && (
-                <button
-                  onClick={() => setShowAllCities(v => !v)}
-                  style={{
-                    fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500,
-                    color: 'var(--accent)', background: 'transparent', border: 'none',
-                    cursor: 'pointer', textAlign: 'left', padding: '8px 0 4px',
-                  }}
-                >
-                  {showAllCities ? `Show top ${CITY_INITIAL_LIMIT}` : `Show all ${cities.length} cities`}
-                </button>
-              )}
-            </SideSection>
-
-            <SideSection label="Category">
-              {ALL_CATS.map(key => {
-                const c = CAT_STYLE[key]
-                const on = filters.cats.has(key)
-                return (
-                  <div key={key} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '7px 0', borderBottom: '1px solid var(--line-2)',
-                  }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--sans)', fontWeight: 400, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>
-                      {c.label}
-                    </span>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginRight: 8 }}>{stats.byCat[key] ?? 0}</span>
-                    <MiniSwitch on={on} color={c.dot} onChange={() => toggleCat(key)} />
-                  </div>
-                )
-              })}
-            </SideSection>
-
-            <button onClick={clearFilters} style={{
-              fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)',
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              textAlign: 'left', padding: 0, marginTop: -10,
-            }}>Reset filters</button>
-          </>
-        ) : (
-          <div style={{
-            fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
-            letterSpacing: 0.6, lineHeight: 1.6,
-          }}>
-            All-time analytics<br />
-            Filters are paused on this tab.
-          </div>
+      <SideSection label="Place">
+        <RadioItem
+          label="All cities"
+          count={checkins.length}
+          selected={filters.city === null}
+          onClick={() => setCity(null)}
+        />
+        {visibleCities.map(({ city, count }) => (
+          <RadioItem
+            key={city}
+            label={city}
+            count={count}
+            selected={filters.city === city}
+            onClick={() => setCity(city)}
+          />
+        ))}
+        {hasMoreCities && (
+          <button
+            onClick={() => setShowAllCities(v => !v)}
+            style={{
+              fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500,
+              color: 'var(--accent)', background: 'transparent', border: 'none',
+              cursor: 'pointer', textAlign: 'left', padding: '8px 0 4px',
+            }}
+          >
+            {showAllCities ? `Show top ${CITY_INITIAL_LIMIT}` : `Show all ${cities.length} cities`}
+          </button>
         )}
-      </div>
+      </SideSection>
 
-      {/* Sticky Account block */}
-      <div style={{
-        flexShrink: 0,
-        padding: '12px 22px 18px',
-        borderTop: '1px solid var(--line-2)',
-        background: 'var(--surface)',
-      }}>
-        <Account profile={userProfile} onSignOut={handleSignOut} />
-      </div>
+      <SideSection label="Category">
+        {ALL_CATS.map(key => {
+          const c = CAT_STYLE[key]
+          const on = filters.cats.has(key)
+          return (
+            <div key={key} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '7px 0', borderBottom: '1px solid var(--line-2)',
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--sans)', fontWeight: 400, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>
+                {c.label}
+              </span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginRight: 8 }}>{stats.byCat[key] ?? 0}</span>
+              <MiniSwitch on={on} color={c.dot} onChange={() => toggleCat(key)} />
+            </div>
+          )
+        })}
+      </SideSection>
+
+      <button onClick={clearFilters} style={{
+        fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)',
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        textAlign: 'left', padding: 0, marginTop: -10,
+      }}>Reset filters</button>
     </aside>
   )
 }
@@ -238,41 +199,3 @@ function MiniSwitch({ on, color, onChange }: { on: boolean; color: string; onCha
   )
 }
 
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2)
-  return parts.map(p => p[0]?.toUpperCase() ?? '').join('') || '?'
-}
-
-function Account({ profile, onSignOut }: { profile: { name: string; photo_url: string | null } | null; onSignOut: () => void }) {
-  const initials = profile ? initialsOf(profile.name) : 'SW'
-  const displayName = profile?.name ?? 'Connected'
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      {profile?.photo_url ? (
-        <img
-          src={profile.photo_url}
-          alt={profile.name}
-          width={28} height={28}
-          referrerPolicy="no-referrer"
-          style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: 'var(--accent-soft)' }}
-        />
-      ) : (
-        <div style={{
-          width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)',
-          color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', letterSpacing: 0.5,
-          flexShrink: 0,
-        }}>{initials}</div>
-      )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {displayName}
-        </div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'oklch(0.62 0.12 140)' }}>foursquare · connected</div>
-      </div>
-      <button onClick={onSignOut} style={{
-        background: 'transparent', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 2, fontSize: 13,
-      }} title="Sign out">⏻</button>
-    </div>
-  )
-}

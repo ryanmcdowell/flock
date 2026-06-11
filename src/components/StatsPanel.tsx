@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../store'
 import { CAT_STYLE, mapCategory, type CatKey } from '../categories'
 import type { CheckIn } from '../types'
@@ -74,8 +74,14 @@ export default function StatsPanel() {
   // Analytics always reflects the full check-in history regardless of sidebar
   // filters so the numbers are stable.
   const all = useAppStore(s => s.checkins)
-  const [granularity, setGranularity] = useState<'Monthly' | 'Yearly'>('Monthly')
   const stats = useMemo(() => computeStats(all, all), [all])
+  // Default to Yearly when the history spans more than ~3 years; otherwise the
+  // monthly bar chart turns into 100+ tiny bars whose labels can't fit.
+  const longHistory = stats.byMonth.length > 36
+  const [granularity, setGranularity] = useState<'Monthly' | 'Yearly'>(longHistory ? 'Yearly' : 'Monthly')
+  useEffect(() => {
+    setGranularity(longHistory ? 'Yearly' : 'Monthly')
+  }, [longHistory])
 
   const chartData = granularity === 'Monthly' ? stats.byMonth : stats.byYear
 
@@ -165,48 +171,100 @@ function SegControl({ opts, active, onChange }: { opts: string[]; active: string
   )
 }
 
+// Decide which bars get an x-axis label: every year boundary for monthly view,
+// every bar for yearly view (or anything with 12 or fewer bars).
+function pickTickIndices(data: BarDatum[]): number[] {
+  if (data.length <= 12) return data.map((_, i) => i)
+  // Monthly keys are "YYYY-MM"; surface only the YYYY-01 entries.
+  const isMonthly = data[0].key.length === 7 && data[0].key.includes('-')
+  if (isMonthly) {
+    return data.flatMap((d, i) => (d.key.endsWith('-01') ? [i] : []))
+  }
+  // Fallback for any other long series: ~8 evenly spaced ticks
+  const step = Math.ceil(data.length / 8)
+  return data.flatMap((_, i) => (i % step === 0 ? [i] : []))
+}
+
+function tickLabel(d: BarDatum): string {
+  // For monthly data, show only the year on Jan ticks; otherwise the raw label.
+  if (d.key.length === 7 && d.key.endsWith('-01')) return d.key.slice(0, 4)
+  return d.label
+}
+
 function BarChart({ data }: { data: BarDatum[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
-  if (!data.length) return <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', fontSize: 12 }}>No data</div>
+  if (!data.length) {
+    return (
+      <div style={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', fontSize: 12 }}>
+        No data
+      </div>
+    )
+  }
+
   const max = Math.max(...data.map(d => d.value))
   const barW = Math.max(4, Math.min(32, Math.floor(560 / data.length) - 3))
-  const height = 100
+  const gap = 3
+  const colW = barW + gap
+  const height = 110
+  const chartWidth = data.length * colW
+  const ticks = pickTickIndices(data)
 
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-      <div style={{ display: 'flex', gap: 3, height: height + 32, minWidth: data.length * (barW + 3), alignItems: 'stretch' }}>
-        {data.map((d, i) => {
-          const h = max > 0 ? Math.max(3, Math.round(d.value / max * height)) : 3
-          const isH = hovered === i
-          return (
-            <div key={d.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: '0 0 auto', width: barW }}>
-              {isH && (
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink)', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 3, padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                  {d.value}
-                </div>
-              )}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
-                <div
-                  onMouseEnter={() => setHovered(i)}
-                  onMouseLeave={() => setHovered(null)}
-                  style={{
-                    width: barW, height: h,
-                    background: isH ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 55%, var(--line))',
-                    borderRadius: '2px 2px 0 0', cursor: 'default',
-                    transition: 'background 120ms',
-                  }}
-                />
-              </div>
-              {(data.length <= 24 || i % Math.ceil(data.length / 16) === 0) && (
+    <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+      <div style={{ position: 'relative', minWidth: chartWidth, paddingBottom: 22 }}>
+        {/* Bars */}
+        <div style={{ display: 'flex', gap, alignItems: 'flex-end', height, minWidth: chartWidth }}>
+          {data.map((d, i) => {
+            const h = max > 0 ? Math.max(3, Math.round(d.value / max * height)) : 3
+            const isH = hovered === i
+            return (
+              <div
+                key={d.key}
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+                style={{ position: 'relative', flex: '0 0 auto', width: barW, height }}
+              >
+                {isH && (
+                  <div style={{
+                    position: 'absolute', bottom: h + 4, left: '50%', transform: 'translateX(-50%)',
+                    fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink)',
+                    background: 'var(--surface)', border: '1px solid var(--line)',
+                    borderRadius: 3, padding: '2px 5px', whiteSpace: 'nowrap',
+                    pointerEvents: 'none', zIndex: 1,
+                  }}>
+                    <div style={{ fontWeight: 600 }}>{d.value}</div>
+                    <div style={{ color: 'var(--ink-3)', fontSize: 9 }}>{d.label}</div>
+                  </div>
+                )}
                 <div style={{
-                  fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--ink-3)',
-                  whiteSpace: 'nowrap', transform: data.length > 12 ? 'rotate(-40deg)' : 'none',
-                  transformOrigin: 'top center', marginTop: 2,
-                }}>{d.label}</div>
-              )}
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: h,
+                  background: isH ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 55%, var(--line))',
+                  borderRadius: '2px 2px 0 0',
+                  transition: 'background 120ms',
+                }} />
+              </div>
+            )
+          })}
+        </div>
+        {/* Baseline */}
+        <div style={{ height: 1, background: 'var(--line-2)', marginTop: 0 }} />
+        {/* X-axis tick labels — absolutely positioned so they never overlap each other */}
+        <div style={{ position: 'relative', height: 18, minWidth: chartWidth, marginTop: 4 }}>
+          {ticks.map(i => (
+            <div
+              key={data[i].key}
+              style={{
+                position: 'absolute',
+                left: i * colW + barW / 2,
+                transform: 'translateX(-50%)',
+                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
+                whiteSpace: 'nowrap', lineHeight: 1,
+              }}
+            >
+              {tickLabel(data[i])}
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
     </div>
   )

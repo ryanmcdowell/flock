@@ -19,7 +19,7 @@ export default function Shell() {
       <TopBar />
       <SyncErrorBanner />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <Sidebar />
+        {panelView !== 'stats' && <Sidebar />}
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {panelView === 'stats' ? (
             <StatsPanel />

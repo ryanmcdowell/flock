@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useAppStore } from '../store'
 import { useDraggable } from '../hooks/useDraggable'
+import AccountMenu from './AccountMenu'
 
 export default function TopBar() {
   const barRef = useRef<HTMLDivElement>(null)
@@ -101,6 +102,8 @@ export default function TopBar() {
             }}>refresh</button>
           )}
       </div>
+
+      <AccountMenu />
     </div>
   )
 }
