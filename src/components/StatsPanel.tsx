@@ -13,12 +13,19 @@ function ymKey(ts: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+interface TopVenue { name: string; city: string | null; count: number; lastTs: number }
+interface Streak { days: number; startTs: number | null; endTs: number | null }
+
 function computeStats(checkins: CheckIn[], all: CheckIn[]) {
   const sorted = [...checkins].sort((a, b) => a.checked_in_at - b.checked_in_at)
   const total = sorted.length
   const citySet = new Set(sorted.map(c => c.venue_city).filter(Boolean) as string[])
-  const venueSet = new Set(sorted.map(c => c.venue_name))
+  const venueSet = new Set(sorted.map(c => c.venue_id ?? c.venue_name))
 
+  const firstTs = sorted[0]?.checked_in_at ?? null
+  const lastTs = sorted[sorted.length - 1]?.checked_in_at ?? null
+
+  // Per-month bars
   const monthMap = new Map<string, number>()
   for (const c of sorted) {
     const k = ymKey(c.checked_in_at)
@@ -31,6 +38,7 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
       label: fmtMonthShort(Date.parse(`${k}-01`) / 1000),
     }))
 
+  // Per-year bars
   const yearMap = new Map<string, number>()
   for (const c of sorted) {
     const y = String(new Date(c.checked_in_at * 1000).getFullYear())
@@ -40,6 +48,7 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([y, v]) => ({ key: y, label: y, value: v }))
 
+  // Top cities
   const cityCount = new Map<string, number>()
   for (const c of sorted) {
     if (c.venue_city) cityCount.set(c.venue_city, (cityCount.get(c.venue_city) ?? 0) + 1)
@@ -49,6 +58,7 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
     .slice(0, 5)
     .map(([full, count]) => ({ city: full.replace(/, [A-Z]{2}$/, ''), full, count }))
 
+  // By category
   const catCount: Partial<Record<CatKey, number>> = {}
   for (const c of sorted) {
     const k = mapCategory(c.venue_category)
@@ -58,16 +68,81 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
     .sort((a, b) => b[1] - a[1])
     .map(([cat, count]) => ({ cat, count }))
 
+  // Day of week
   const dowLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const day = [0, 0, 0, 0, 0, 0, 0]
   for (const c of sorted) day[new Date(c.checked_in_at * 1000).getDay()] += 1
   const byDayOfWeek = dowLabels.map((label, i) => ({ label, value: day[i] }))
 
+  // Hour of day
+  const hour = new Array(24).fill(0) as number[]
+  for (const c of sorted) hour[new Date(c.checked_in_at * 1000).getHours()] += 1
+  const byHour = hour.map((value, h) => ({
+    label: h === 0 ? '12a' : h === 12 ? '12p' : h < 12 ? `${h}a` : `${h - 12}p`,
+    value,
+    hour: h,
+  }))
+
+  // Longest streak — sequence of consecutive UTC days with at least one check-in
+  const dayKeys = [...new Set(sorted.map(c => new Date(c.checked_in_at * 1000).toISOString().slice(0, 10)))].sort()
+  const streak: Streak = { days: dayKeys.length > 0 ? 1 : 0, startTs: null, endTs: null }
+  if (dayKeys.length > 0) {
+    let bestDays = 1
+    let bestStart = dayKeys[0]
+    let bestEnd = dayKeys[0]
+    let runDays = 1
+    let runStart = dayKeys[0]
+    for (let i = 1; i < dayKeys.length; i++) {
+      const prev = Date.parse(dayKeys[i - 1] + 'T00:00:00Z') / 86400000
+      const curr = Date.parse(dayKeys[i] + 'T00:00:00Z') / 86400000
+      if (curr - prev === 1) {
+        runDays += 1
+      } else {
+        runDays = 1
+        runStart = dayKeys[i]
+      }
+      if (runDays > bestDays) {
+        bestDays = runDays
+        bestStart = runStart
+        bestEnd = dayKeys[i]
+      }
+    }
+    streak.days = bestDays
+    streak.startTs = Date.parse(bestStart + 'T12:00:00Z') / 1000
+    streak.endTs = Date.parse(bestEnd + 'T12:00:00Z') / 1000
+  }
+
+  // Top venues — most-visited unique venues
+  const venueMap = new Map<string, TopVenue>()
+  for (const c of sorted) {
+    const key = c.venue_id ?? `${c.venue_name}|${c.venue_city ?? ''}`
+    const existing = venueMap.get(key)
+    if (existing) {
+      existing.count += 1
+      if (c.checked_in_at > existing.lastTs) existing.lastTs = c.checked_in_at
+    } else {
+      venueMap.set(key, { name: c.venue_name, city: c.venue_city, count: 1, lastTs: c.checked_in_at })
+    }
+  }
+  const topVenues: TopVenue[] = [...venueMap.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+
   return {
     total, cityCount: citySet.size, uniqueVenues: venueSet.size,
-    byMonth, byYear, topCities, byCategory, byDayOfWeek,
+    firstTs, lastTs,
+    byMonth, byYear, topCities, byCategory, byDayOfWeek, byHour,
+    longestStreak: streak,
+    topVenues,
     allLen: all.length,
   }
+}
+
+function fmtShortDate(ts: number) {
+  return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+function fmtMonthYear(ts: number) {
+  return new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
 export default function StatsPanel() {
@@ -89,54 +164,98 @@ export default function StatsPanel() {
   // actually work (CSS grid children default to min-width:auto = content size).
   const gridChild: React.CSSProperties = { minWidth: 0 }
 
+  const activeSince = stats.firstTs ? fmtMonthYear(stats.firstTs) : null
+  const streakRange = stats.longestStreak.startTs && stats.longestStreak.endTs
+    ? (stats.longestStreak.startTs === stats.longestStreak.endTs
+        ? fmtShortDate(stats.longestStreak.startTs)
+        : `${fmtShortDate(stats.longestStreak.startTs)} – ${fmtShortDate(stats.longestStreak.endTs)}`)
+    : null
+
   return (
     <div style={{
       padding: '28px 32px', overflowY: 'auto', height: '100%',
-      display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0,
+      display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+      {/* Headline metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         <div style={gridChild}><StatCard label="Total check-ins" value={stats.total.toLocaleString()} /></div>
         <div style={gridChild}><StatCard label="Cities visited" value={stats.cityCount.toLocaleString()} /></div>
+        <div style={gridChild}>
+          <StatCard
+            label="Unique venues"
+            value={stats.uniqueVenues.toLocaleString()}
+            sub={activeSince ? `since ${activeSince}` : undefined}
+          />
+        </div>
+        <div style={gridChild}>
+          <StatCard
+            label="Longest streak"
+            value={`${stats.longestStreak.days} ${stats.longestStreak.days === 1 ? 'day' : 'days'}`}
+            sub={streakRange ?? undefined}
+          />
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
-        <div style={gridChild}>
-          <ChartCard
-            title="Check-ins over time"
-            right={
-              <SegControl
-                opts={['Monthly', 'Yearly']}
-                active={granularity}
-                onChange={v => setGranularity(v as 'Monthly' | 'Yearly')}
-              />
-            }
-          >
-            <BarChart data={chartData} />
-          </ChartCard>
-        </div>
+      {/* Check-ins over time — full width */}
+      <ChartCard
+        title="Check-ins over time"
+        right={
+          <SegControl
+            opts={['Monthly', 'Yearly']}
+            active={granularity}
+            onChange={v => setGranularity(v as 'Monthly' | 'Yearly')}
+          />
+        }
+      >
+        <BarChart data={chartData} />
+      </ChartCard>
 
-        <div style={{ ...gridChild, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Place insights */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={gridChild}>
           <ChartCard title="Top cities">
             <CityLeaderboard rows={stats.topCities} />
           </ChartCard>
-          <ChartCard title="By category">
-            <CategoryBreakdown rows={stats.byCategory} total={stats.total} />
+        </div>
+        <div style={gridChild}>
+          <ChartCard title="Top venues">
+            <VenueLeaderboard rows={stats.topVenues} />
           </ChartCard>
         </div>
       </div>
 
-      <ChartCard title="Most active day of week">
-        <DayOfWeekChart data={stats.byDayOfWeek} />
+      {/* Time-of-week / time-of-day */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={gridChild}>
+          <ChartCard title="By day of week">
+            <DayOfWeekChart data={stats.byDayOfWeek} />
+          </ChartCard>
+        </div>
+        <div style={gridChild}>
+          <ChartCard title="By hour of day">
+            <HourOfDayChart data={stats.byHour} />
+          </ChartCard>
+        </div>
+      </div>
+
+      {/* Category breakdown — full width since the chips wrap naturally */}
+      <ChartCard title="By category">
+        <CategoryBreakdown rows={stats.byCategory} total={stats.total} />
       </ChartCard>
     </div>
   )
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '18px 20px' }}>
-      <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 500 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--sans)', fontSize: 36, fontWeight: 300, letterSpacing: -0.3, color: 'var(--ink)', lineHeight: 1 }}>{value}</div>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '16px 18px' }}>
+      <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 300, letterSpacing: -0.3, color: 'var(--ink)', lineHeight: 1 }}>{value}</div>
+      {sub && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {sub}
+        </div>
+      )}
     </div>
   )
 }
@@ -266,6 +385,82 @@ function BarChart({ data }: { data: BarDatum[] }) {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function VenueLeaderboard({ rows }: { rows: TopVenue[] }) {
+  if (!rows.length) return <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>No data</div>
+  const max = rows[0].count
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {rows.map((r, i) => (
+        <div key={`${r.name}|${r.city ?? ''}|${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', width: 14, textAlign: 'right' }}>{i + 1}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginBottom: 3 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {r.name}
+              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>{r.count}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+              {r.city && (
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.city}
+                </div>
+              )}
+            </div>
+            <div style={{ height: 4, background: 'var(--line-2)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 2,
+                width: `${(r.count / max) * 100}%`,
+                background: i === 0 ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 45%, var(--line))',
+              }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function HourOfDayChart({ data }: { data: { label: string; value: number; hour: number }[] }) {
+  if (!data.length) return null
+  const max = Math.max(...data.map(d => d.value))
+  const peakHour = max === 0 ? -1 : data.findIndex(d => d.value === max)
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 72 }}>
+        {data.map((d, i) => {
+          const pct = max > 0 ? d.value / max : 0
+          const isPeak = i === peakHour
+          return (
+            <div key={d.hour} title={`${d.label}: ${d.value}`} style={{ flex: 1, height: 64, display: 'flex', alignItems: 'flex-end', minWidth: 6 }}>
+              <div style={{
+                width: '100%',
+                height: `${Math.max(2, pct * 60)}px`,
+                background: isPeak ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 45%, var(--line))',
+                borderRadius: '2px 2px 0 0',
+                transition: 'background 120ms',
+              }} />
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-3)' }}>
+        <span>12a</span>
+        <span>6a</span>
+        <span>12p</span>
+        <span>6p</span>
+        <span>11p</span>
+      </div>
+      {peakHour >= 0 && (
+        <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)' }}>
+          Peak: <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{data[peakHour].label}</span>
+          <span style={{ marginLeft: 6 }}>· {data[peakHour].value} check-ins</span>
+        </div>
+      )}
     </div>
   )
 }
