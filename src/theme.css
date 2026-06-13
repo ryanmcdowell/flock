@@ -39,3 +39,11 @@ body {
 
 @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
 @keyframes spin { to { transform: rotate(360deg) } }
+
+/* The TopBar's search input sits on the orange accent. Default browser
+   placeholders render at ~50% opacity of the text color, which on white-on-orange
+   washes out almost completely. Override to a much more legible value. */
+.topbar-search::placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  opacity: 1;
+}

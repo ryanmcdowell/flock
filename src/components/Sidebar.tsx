@@ -20,16 +20,24 @@ export default function Sidebar() {
   const clearFilters = useAppStore(s => s.clearFilters)
   const [showAllCities, setShowAllCities] = useState(false)
 
+  // Period counts use the full history (so a user can see what each preset would
+  // yield), but Place and Category counts are scoped to the active date preset
+  // so users only see cities/categories that exist within the chosen window.
+  const dateScoped = useMemo(() => {
+    const cutoff = presetCutoff(filters.datePreset)
+    if (cutoff == null) return checkins
+    return checkins.filter(c => c.checked_in_at >= cutoff)
+  }, [checkins, filters.datePreset])
+
   const cities = useMemo(() => {
     const m = new Map<string, number>()
-    for (const c of checkins) {
+    for (const c of dateScoped) {
       if (c.venue_city) m.set(c.venue_city, (m.get(c.venue_city) ?? 0) + 1)
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([city, count]) => ({ city, count }))
-  }, [checkins])
+  }, [dateScoped])
 
   const stats = useMemo(() => {
-    const byCity: Record<string, number> = {}
     const byCat: Partial<Record<CatKey, number>> = {}
     const byPreset: Record<DatePreset, number> = { '30d': 0, '90d': 0, '365d': 0, 'all': 0 }
     const now = Date.now()
@@ -39,17 +47,23 @@ export default function Sidebar() {
       '365d': presetCutoff('365d', now),
       'all': null,
     }
+    // Period counts scan the full set (we need to know what each window would show)
     for (const c of checkins) {
-      if (c.venue_city) byCity[c.venue_city] = (byCity[c.venue_city] ?? 0) + 1
-      const cat = mapCategory(c.venue_category)
-      byCat[cat] = (byCat[cat] ?? 0) + 1
       byPreset.all += 1
       if (cutoffs['30d']! <= c.checked_in_at) byPreset['30d'] += 1
       if (cutoffs['90d']! <= c.checked_in_at) byPreset['90d'] += 1
       if (cutoffs['365d']! <= c.checked_in_at) byPreset['365d'] += 1
     }
-    return { byCity, byCat, byPreset }
-  }, [checkins])
+    // Category counts are scoped to the active period
+    for (const c of dateScoped) {
+      const cat = mapCategory(c.venue_category)
+      byCat[cat] = (byCat[cat] ?? 0) + 1
+    }
+    return { byCat, byPreset }
+  }, [checkins, dateScoped])
+
+  const activePresetLabel = DATE_PRESETS.find(p => p.key === filters.datePreset)?.label ?? 'this period'
+  const categoriesInScope = ALL_CATS.filter(k => (stats.byCat[k] ?? 0) > 0)
 
   function setDatePreset(p: DatePreset) {
     setFilters({ ...filters, datePreset: p })
@@ -88,51 +102,64 @@ export default function Sidebar() {
       <SideSection label="Place">
         <RadioItem
           label="All cities"
-          count={checkins.length}
+          count={dateScoped.length}
           selected={filters.city === null}
           onClick={() => setCity(null)}
         />
-        {visibleCities.map(({ city, count }) => (
-          <RadioItem
-            key={city}
-            label={city}
-            count={count}
-            selected={filters.city === city}
-            onClick={() => setCity(city)}
-          />
-        ))}
-        {hasMoreCities && (
-          <button
-            onClick={() => setShowAllCities(v => !v)}
-            style={{
-              fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500,
-              color: 'var(--accent)', background: 'transparent', border: 'none',
-              cursor: 'pointer', textAlign: 'left', padding: '8px 0 4px',
-            }}
-          >
-            {showAllCities ? `Show top ${CITY_INITIAL_LIMIT}` : `Show all ${cities.length} cities`}
-          </button>
+        {cities.length === 0 ? (
+          <EmptyHint>No cities in {activePresetLabel.toLowerCase()}.</EmptyHint>
+        ) : (
+          <>
+            {visibleCities.map(({ city, count }) => (
+              <RadioItem
+                key={city}
+                label={city}
+                count={count}
+                selected={filters.city === city}
+                onClick={() => setCity(city)}
+              />
+            ))}
+            {hasMoreCities && (
+              <button
+                onClick={() => setShowAllCities(v => !v)}
+                style={{
+                  fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500,
+                  color: 'var(--accent)', background: 'transparent', border: 'none',
+                  cursor: 'pointer', textAlign: 'left', padding: '8px 0 4px',
+                }}
+              >
+                {showAllCities ? `Show top ${CITY_INITIAL_LIMIT}` : `Show all ${cities.length} cities`}
+              </button>
+            )}
+          </>
         )}
       </SideSection>
 
       <SideSection label="Category">
-        {ALL_CATS.map(key => {
-          const c = CAT_STYLE[key]
-          const on = filters.cats.has(key)
-          return (
-            <div key={key} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '7px 0', borderBottom: '1px solid var(--line-2)',
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--sans)', fontWeight: 400, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>
-                {c.label}
-              </span>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginRight: 8 }}>{stats.byCat[key] ?? 0}</span>
-              <MiniSwitch on={on} color={c.dot} onChange={() => toggleCat(key)} />
-            </div>
-          )
-        })}
+        {categoriesInScope.length === 0 ? (
+          <EmptyHint>No check-ins in {activePresetLabel.toLowerCase()}.</EmptyHint>
+        ) : (
+          ALL_CATS.map(key => {
+            const c = CAT_STYLE[key]
+            const on = filters.cats.has(key)
+            const count = stats.byCat[key] ?? 0
+            const muted = count === 0
+            return (
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '7px 0', borderBottom: '1px solid var(--line-2)',
+                opacity: muted ? 0.45 : 1,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--sans)', fontWeight: 400, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>
+                  {c.label}
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginRight: 8 }}>{count}</span>
+                <MiniSwitch on={on} color={c.dot} onChange={() => toggleCat(key)} />
+              </div>
+            )
+          })
+        )}
       </SideSection>
 
       <button onClick={clearFilters} style={{
@@ -178,6 +205,17 @@ function RadioItem({ label, selected, onClick, count }: { label: string; selecte
       }}>{label}</span>
       {count != null && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>{count}</span>}
     </button>
+  )
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-3)',
+      lineHeight: 1.5, padding: '8px 0 2px',
+    }}>
+      {children}
+    </div>
   )
 }
 

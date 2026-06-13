@@ -248,14 +248,18 @@ export default function StatsPanel() {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8, padding: '16px 18px' }}>
+    <div style={{
+      background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 8,
+      padding: '16px 18px',
+      height: '100%', display: 'flex', flexDirection: 'column',
+    }}>
       <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
       <div style={{ fontFamily: 'var(--sans)', fontSize: 30, fontWeight: 300, letterSpacing: -0.3, color: 'var(--ink)', lineHeight: 1 }}>{value}</div>
-      {sub && (
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {sub}
-        </div>
-      )}
+      <div style={{ flex: 1 }} />
+      {/* Reserve a row for the sub line so cards without one still match height */}
+      <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minHeight: 12 }}>
+        {sub ?? ' '}
+      </div>
     </div>
   )
 }
@@ -321,18 +325,21 @@ function BarChart({ data }: { data: BarDatum[] }) {
   }
 
   const max = Math.max(...data.map(d => d.value))
-  const barW = Math.max(4, Math.min(32, Math.floor(560 / data.length) - 3))
+  // Each column gets at least MIN_COL_W px. If the data fits in the container,
+  // flex stretches the columns to fill 100%. If not, minWidth kicks in and
+  // overflow-x scrolls. The previous version hard-capped column width at 32px
+  // which left the right half of the chart blank in Yearly view.
+  const MIN_COL_W = 6
   const gap = 3
-  const colW = barW + gap
   const height = 110
-  const chartWidth = data.length * colW
+  const naturalMinWidth = data.length * (MIN_COL_W + gap)
   const ticks = pickTickIndices(data)
 
   return (
     <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-      <div style={{ position: 'relative', minWidth: chartWidth, paddingBottom: 22 }}>
+      <div style={{ position: 'relative', minWidth: naturalMinWidth, paddingBottom: 22 }}>
         {/* Bars */}
-        <div style={{ display: 'flex', gap, alignItems: 'flex-end', height, minWidth: chartWidth }}>
+        <div style={{ display: 'flex', gap, alignItems: 'flex-end', height }}>
           {data.map((d, i) => {
             const h = max > 0 ? Math.max(3, Math.round(d.value / max * height)) : 3
             const isH = hovered === i
@@ -341,7 +348,7 @@ function BarChart({ data }: { data: BarDatum[] }) {
                 key={d.key}
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
-                style={{ position: 'relative', flex: '0 0 auto', width: barW, height }}
+                style={{ position: 'relative', flex: '1 1 0', minWidth: MIN_COL_W, height }}
               >
                 {isH && (
                   <div style={{
@@ -367,20 +374,20 @@ function BarChart({ data }: { data: BarDatum[] }) {
         </div>
         {/* Baseline */}
         <div style={{ height: 1, background: 'var(--line-2)', marginTop: 0 }} />
-        {/* X-axis tick labels — absolutely positioned so they never overlap each other */}
-        <div style={{ position: 'relative', height: 18, minWidth: chartWidth, marginTop: 4 }}>
-          {ticks.map(i => (
-            <div
-              key={data[i].key}
-              style={{
-                position: 'absolute',
-                left: i * colW + barW / 2,
-                transform: 'translateX(-50%)',
-                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
-                whiteSpace: 'nowrap', lineHeight: 1,
-              }}
-            >
-              {tickLabel(data[i])}
+        {/* X-axis tick labels — flex columns mirror the bar columns above so
+            ticks always sit under their bar regardless of container width. */}
+        <div style={{ display: 'flex', gap, height: 18, marginTop: 4 }}>
+          {data.map((d, i) => (
+            <div key={d.key} style={{ flex: '1 1 0', minWidth: MIN_COL_W, position: 'relative', height: 14 }}>
+              {ticks.includes(i) && (
+                <div style={{
+                  position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                  fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
+                  whiteSpace: 'nowrap', lineHeight: 1,
+                }}>
+                  {tickLabel(d)}
+                </div>
+              )}
             </div>
           ))}
         </div>

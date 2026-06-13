@@ -68,6 +68,7 @@ export default function TopBar() {
           <path d="M8.6 8.6l3 3" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         <input
+          className="topbar-search"
           value={query}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search…"
