@@ -13,7 +13,6 @@ function ymKey(ts: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-interface TopVenue { name: string; city: string | null; count: number; lastTs: number }
 interface Streak { days: number; startTs: number | null; endTs: number | null }
 
 function computeStats(checkins: CheckIn[], all: CheckIn[]) {
@@ -112,28 +111,11 @@ function computeStats(checkins: CheckIn[], all: CheckIn[]) {
     streak.endTs = Date.parse(bestEnd + 'T12:00:00Z') / 1000
   }
 
-  // Top venues — most-visited unique venues
-  const venueMap = new Map<string, TopVenue>()
-  for (const c of sorted) {
-    const key = c.venue_id ?? `${c.venue_name}|${c.venue_city ?? ''}`
-    const existing = venueMap.get(key)
-    if (existing) {
-      existing.count += 1
-      if (c.checked_in_at > existing.lastTs) existing.lastTs = c.checked_in_at
-    } else {
-      venueMap.set(key, { name: c.venue_name, city: c.venue_city, count: 1, lastTs: c.checked_in_at })
-    }
-  }
-  const topVenues: TopVenue[] = [...venueMap.values()]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
   return {
     total, cityCount: citySet.size, uniqueVenues: venueSet.size,
     firstTs, lastTs,
     byMonth, byYear, topCities, byCategory, byDayOfWeek, byHour,
     longestStreak: streak,
-    topVenues,
     allLen: all.length,
   }
 }
@@ -210,7 +192,7 @@ export default function StatsPanel() {
         <BarChart data={chartData} />
       </ChartCard>
 
-      {/* Place insights */}
+      {/* Place + category insights */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={gridChild}>
           <ChartCard title="Top cities">
@@ -218,8 +200,8 @@ export default function StatsPanel() {
           </ChartCard>
         </div>
         <div style={gridChild}>
-          <ChartCard title="Top venues">
-            <VenueLeaderboard rows={stats.topVenues} />
+          <ChartCard title="By category">
+            <CategoryDonut rows={stats.byCategory} total={stats.total} />
           </ChartCard>
         </div>
       </div>
@@ -237,11 +219,6 @@ export default function StatsPanel() {
           </ChartCard>
         </div>
       </div>
-
-      {/* Category breakdown — full width since the chips wrap naturally */}
-      <ChartCard title="By category">
-        <CategoryBreakdown rows={stats.byCategory} total={stats.total} />
-      </ChartCard>
     </div>
   )
 }
@@ -396,38 +373,88 @@ function BarChart({ data }: { data: BarDatum[] }) {
   )
 }
 
-function VenueLeaderboard({ rows }: { rows: TopVenue[] }) {
-  if (!rows.length) return <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>No data</div>
-  const max = rows[0].count
+function CategoryDonut({ rows, total }: { rows: { cat: CatKey; count: number }[]; total: number }) {
+  if (!rows.length || total === 0) {
+    return <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>No data</div>
+  }
+
+  // SVG donut: each segment is a circle stroke segment positioned by
+  // strokeDasharray + strokeDashoffset. Rotate -90deg so the first segment
+  // starts at 12 o'clock.
+  const radius = 40
+  const stroke = 14
+  const circumference = 2 * Math.PI * radius
+
+  let cursor = 0
+  const segments = rows.map(r => {
+    const len = (r.count / total) * circumference
+    const offset = cursor
+    cursor += len
+    return { ...r, len, offset }
+  })
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {rows.map((r, i) => (
-        <div key={`${r.name}|${r.city ?? ''}|${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', width: 14, textAlign: 'right' }}>{i + 1}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginBottom: 3 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {r.name}
-              </div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>{r.count}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
-              {r.city && (
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.city}
-                </div>
-              )}
-            </div>
-            <div style={{ height: 4, background: 'var(--line-2)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: 2,
-                width: `${(r.count / max) * 100}%`,
-                background: i === 0 ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 45%, var(--line))',
-              }} />
-            </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+      <div style={{ position: 'relative', flexShrink: 0, width: 132, height: 132 }}>
+        <svg width="132" height="132" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--line-2)" strokeWidth={stroke} />
+          {segments.map(s => (
+            <circle
+              key={s.cat}
+              cx="50" cy="50" r={radius}
+              fill="none"
+              stroke={CAT_STYLE[s.cat].dot}
+              strokeWidth={stroke}
+              strokeDasharray={`${s.len} ${circumference}`}
+              strokeDashoffset={-s.offset}
+              strokeLinecap="butt"
+              transform="rotate(-90 50 50)"
+            />
+          ))}
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          textAlign: 'center', pointerEvents: 'none',
+        }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 18, fontWeight: 500, color: 'var(--ink)', lineHeight: 1 }}>
+            {total.toLocaleString()}
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-3)', marginTop: 3, letterSpacing: 0.4 }}>
+            TOTAL
           </div>
         </div>
-      ))}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        {rows.map(r => {
+          const pct = Math.round((r.count / total) * 100)
+          return (
+            <div key={r.cat} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 9, height: 9, borderRadius: '50%',
+                background: CAT_STYLE[r.cat].dot, flexShrink: 0,
+              }} />
+              <span style={{
+                flex: 1, fontSize: 12.5, color: 'var(--ink)', fontWeight: 500,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {CAT_STYLE[r.cat].label}
+              </span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', flexShrink: 0 }}>
+                {r.count.toLocaleString()}
+              </span>
+              <span style={{
+                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
+                flexShrink: 0, width: 30, textAlign: 'right',
+              }}>
+                {pct}%
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -527,28 +554,3 @@ function DayOfWeekChart({ data }: { data: { label: string; value: number }[] }) 
   )
 }
 
-function CategoryBreakdown({ rows, total }: { rows: { cat: CatKey; count: number }[]; total: number }) {
-  if (!rows.length) return <div style={{ color: 'var(--ink-3)', fontSize: 12 }}>No data</div>
-  return (
-    <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-      {rows.map(r => {
-        const c = CAT_STYLE[r.cat]
-        const pct = total > 0 ? Math.round(r.count / total * 100) : 0
-        return (
-          <div key={r.cat} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%', position: 'relative',
-              background: 'transparent', border: `2.5px solid ${c.dot}`,
-            }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{c.label}</div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>
-                {r.count} · {pct}%
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
