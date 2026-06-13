@@ -1,6 +1,6 @@
 [package]
 name = "flock"
-version = "0.1.1"
+version = "0.1.2"
 description = "Explore your Foursquare Swarm check-in history."
 authors = ["Ryan McDowell"]
 edition = "2021"

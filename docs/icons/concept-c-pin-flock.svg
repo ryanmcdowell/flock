@@ -1,26 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <radialGradient id="disc" cx="0.35" cy="0.3" r="0.85">
+    <!-- Orange radial gradient covering the whole tile, lit from top-left -->
+    <radialGradient id="disc" cx="0.35" cy="0.3" r="0.95">
       <stop offset="0" stop-color="#FFB366"/>
       <stop offset="1" stop-color="#FF8C24"/>
     </radialGradient>
-    <linearGradient id="long-shadow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#000" stop-opacity="0"/>
-      <stop offset="1" stop-color="#000" stop-opacity="0.16"/>
-    </linearGradient>
     <filter id="soft-blur" x="-10%" y="-10%" width="120%" height="120%">
       <feGaussianBlur stdDeviation="14"/>
     </filter>
-    <clipPath id="disc-clip">
-      <circle cx="512" cy="512" r="480"/>
+    <!-- Squircle clip so the shadow blur doesn't bleed past the icon edge -->
+    <clipPath id="squircle-clip">
+      <rect x="0" y="0" width="1024" height="1024" rx="225" ry="225"/>
     </clipPath>
   </defs>
 
-  <!-- Disc -->
-  <circle cx="512" cy="512" r="480" fill="url(#disc)"/>
+  <!-- Squircle background, filling the full 1024x1024 canvas the way macOS app
+       icons are expected to. The 225px corner radius approximates the Apple
+       Big Sur "squircle" shape. -->
+  <rect x="0" y="0" width="1024" height="1024" rx="225" ry="225" fill="url(#disc)"/>
 
-  <!-- Long ambient shadow trailing toward bottom-right (matches Swarm style) -->
-  <g clip-path="url(#disc-clip)" opacity="0.22">
+  <!-- Long ambient shadow trailing toward bottom-right, in the spirit of the
+       original Swarm bee icon. -->
+  <g clip-path="url(#squircle-clip)" opacity="0.22">
     <g filter="url(#soft-blur)">
       <circle cx="560" cy="408" r="80" fill="#7a3f00"/>
       <circle cx="455" cy="508" r="76" fill="#7a3f00"/>
@@ -34,12 +35,9 @@
        Each pin: cream outer disc + warm orange inner dot, mirroring the
        map pin glyph used inside the app. -->
   <g fill="#FFF3DC">
-    <!-- Lead pin -->
     <circle cx="512" cy="372" r="72"/>
-    <!-- Mid row -->
     <circle cx="410" cy="472" r="68"/>
     <circle cx="614" cy="472" r="68"/>
-    <!-- Back row -->
     <circle cx="308" cy="572" r="64"/>
     <circle cx="716" cy="572" r="64"/>
   </g>
