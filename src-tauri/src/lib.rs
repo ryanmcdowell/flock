@@ -15,7 +15,7 @@ pub fn run() {
             let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
             let pool: DbPool = tauri::async_runtime::block_on(
-                db::init_pool(&app_dir.join("swarm.db"))
+                db::init_pool(&app_dir.join("flock.db"))
             ).expect("Failed to initialize database");
             app.manage(pool);
             Ok(())

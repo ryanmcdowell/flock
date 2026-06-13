@@ -1,7 +1,7 @@
 {
-  "productName": "Swarm Viewer",
+  "productName": "Flock",
   "version": "0.1.0",
-  "identifier": "io.ryanmcdowell.swarm-viewer",
+  "identifier": "io.ryanmcdowell.flock",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Swarm Viewer",
+        "title": "Flock",
         "width": 1200,
         "height": 800,
         "minWidth": 900,

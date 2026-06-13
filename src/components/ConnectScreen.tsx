@@ -49,7 +49,7 @@ function PitchColumn() {
       borderRight: '1px solid var(--line-2)', position: 'relative', overflow: 'hidden',
     }}>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginBottom: 14 }}>
-        Swarm · Check-in viewer
+        Flock · Foursquare Swarm viewer
       </div>
       <h1 style={{
         fontSize: 46, lineHeight: 1.0, letterSpacing: -1,
@@ -102,7 +102,7 @@ function PitchColumn() {
 
       <div style={{ display: 'flex', gap: 28, fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'var(--sans)', marginTop: 24 }}>
         <span><span style={{ color: 'var(--ink-2)' }}>Local-first</span> · cache on device</span>
-        <span><span style={{ color: 'var(--ink-2)' }}>Read-only</span> · never writes to Swarm</span>
+        <span><span style={{ color: 'var(--ink-2)' }}>Read-only</span> · never writes to Foursquare</span>
         <span><span style={{ color: 'var(--ink-2)' }}>Keychain</span> · OS-secured token</span>
       </div>
     </div>
@@ -168,7 +168,7 @@ function ConnectColumn({ connecting, error, onConnect }: { connecting: boolean; 
         fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', letterSpacing: 0.6, lineHeight: 1.6,
       }}>
         Foursquare · OAuth 2.0 · read-only scope<br />
-        Cache: ~/Library/Application Support/Swarm Viewer/swarm.db
+        Cache: ~/Library/Application Support/io.ryanmcdowell.flock/flock.db
       </div>
     </div>
   )

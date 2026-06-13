@@ -1,14 +1,14 @@
 [package]
-name = "swarm-to-notion"
+name = "flock"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Explore your Foursquare Swarm check-in history."
+authors = ["Ryan McDowell"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "swarm_viewer_lib"
+name = "flock_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

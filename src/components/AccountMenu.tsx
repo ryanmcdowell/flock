@@ -30,7 +30,7 @@ export default function AccountMenu() {
     }).catch(console.error)
   }
 
-  const initials = profile ? initialsOf(profile.name) : 'SW'
+  const initials = profile ? initialsOf(profile.name) : 'FL'
   const name = profile?.name ?? 'Connected'
 
   return (

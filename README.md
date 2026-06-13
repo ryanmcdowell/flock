@@ -1,4 +1,4 @@
-# Swarm Viewer
+# Flock
 
 A desktop app to explore your Foursquare Swarm check-in history on an interactive map.
 

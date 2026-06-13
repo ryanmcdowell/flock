@@ -1,6 +1,6 @@
 use keyring::Entry;
 
-const SERVICE: &str = "swarm-viewer";
+const SERVICE: &str = "flock";
 const USER: &str = "access-token";
 
 pub fn store_token(token: &str) -> Result<(), String> {

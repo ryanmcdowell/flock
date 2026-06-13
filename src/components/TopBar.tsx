@@ -33,7 +33,7 @@ export default function TopBar() {
       }}
     >
       <div data-tauri-drag-region style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 18, letterSpacing: -0.5, color: '#ffffff', marginRight: 28, flexShrink: 0 }}>
-        Swarm
+        Flock
       </div>
 
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(0,0,0,0.15)', borderRadius: 8, padding: 3, gap: 2 }}>

@@ -46,7 +46,7 @@ jobs:
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Swarm Viewer ${{ github.ref_name }}'
+          releaseName: 'Flock ${{ github.ref_name }}'
           releaseBody: 'See CHANGELOG for details.'
           releaseDraft: true
           prerelease: false
