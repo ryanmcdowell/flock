@@ -7,6 +7,7 @@ import type { DatePreset } from '../types'
 const DATE_PRESETS: { key: DatePreset; label: string }[] = [
   { key: '30d', label: 'Last 30 days' },
   { key: '90d', label: 'Last 90 days' },
+  { key: 'thisYear', label: 'This year' },
   { key: '365d', label: 'Last year' },
   { key: 'all', label: 'All time' },
 ]
@@ -39,20 +40,18 @@ export default function Sidebar() {
 
   const stats = useMemo(() => {
     const byCat: Partial<Record<CatKey, number>> = {}
-    const byPreset: Record<DatePreset, number> = { '30d': 0, '90d': 0, '365d': 0, 'all': 0 }
+    const byPreset: Record<DatePreset, number> = { '30d': 0, '90d': 0, 'thisYear': 0, '365d': 0, 'all': 0 }
     const now = Date.now()
-    const cutoffs: Record<DatePreset, number | null> = {
-      '30d': presetCutoff('30d', now),
-      '90d': presetCutoff('90d', now),
-      '365d': presetCutoff('365d', now),
-      'all': null,
-    }
+    const presetKeys = (Object.keys(byPreset) as DatePreset[]).filter(k => k !== 'all')
+    const cutoffs = Object.fromEntries(
+      presetKeys.map(k => [k, presetCutoff(k, now)!]),
+    ) as Record<Exclude<DatePreset, 'all'>, number>
     // Period counts scan the full set (we need to know what each window would show)
     for (const c of checkins) {
       byPreset.all += 1
-      if (cutoffs['30d']! <= c.checked_in_at) byPreset['30d'] += 1
-      if (cutoffs['90d']! <= c.checked_in_at) byPreset['90d'] += 1
-      if (cutoffs['365d']! <= c.checked_in_at) byPreset['365d'] += 1
+      for (const k of presetKeys) {
+        if (cutoffs[k as Exclude<DatePreset, 'all'>] <= c.checked_in_at) byPreset[k] += 1
+      }
     }
     // Category counts are scoped to the active period
     for (const c of dateScoped) {

@@ -34,7 +34,7 @@ export interface SyncProgress {
   total: number
 }
 
-export type DatePreset = 'all' | '30d' | '90d' | '365d'
+export type DatePreset = 'all' | '30d' | '90d' | 'thisYear' | '365d'
 
 export interface Filters {
   datePreset: DatePreset

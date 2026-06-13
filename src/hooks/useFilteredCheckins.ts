@@ -3,17 +3,23 @@ import { useAppStore } from '../store'
 import { mapCategory } from '../categories'
 import type { CheckIn, Filters, DatePreset } from '../types'
 
-const PRESET_DAYS: Record<DatePreset, number | null> = {
-  'all': null,
-  '30d': 30,
-  '90d': 90,
-  '365d': 365,
-}
-
 export function presetCutoff(preset: DatePreset, now = Date.now()): number | null {
-  const days = PRESET_DAYS[preset]
-  if (days == null) return null
-  return Math.floor(now / 1000) - days * 86400
+  switch (preset) {
+    case 'all':
+      return null
+    case '30d':
+      return Math.floor(now / 1000) - 30 * 86400
+    case '90d':
+      return Math.floor(now / 1000) - 90 * 86400
+    case '365d':
+      return Math.floor(now / 1000) - 365 * 86400
+    case 'thisYear': {
+      const d = new Date(now)
+      d.setMonth(0, 1)
+      d.setHours(0, 0, 0, 0)
+      return Math.floor(d.getTime() / 1000)
+    }
+  }
 }
 
 export function filterCheckins(checkins: CheckIn[], query: string, filters: Filters): CheckIn[] {

@@ -7,6 +7,7 @@ const PRESET_LABEL: Record<DatePreset, string> = {
   'all': 'All time',
   '30d': 'Last 30 days',
   '90d': 'Last 90 days',
+  'thisYear': 'This year',
   '365d': 'Last year',
 }
 
