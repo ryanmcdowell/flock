@@ -44,6 +44,13 @@ jobs:
           FOURSQUARE_CLIENT_ID: ${{ secrets.FOURSQUARE_CLIENT_ID }}
           FOURSQUARE_CLIENT_SECRET: ${{ secrets.FOURSQUARE_CLIENT_SECRET }}
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          # Ad-hoc sign the macOS app. Doesn't make it Apple-trusted, but
+          # prevents the "Flock is damaged and can't be opened" Gatekeeper
+          # message that strict macOS policies show for unsigned binaries
+          # downloaded from a browser. Users still see "unidentified
+          # developer" on first launch and use the right-click -> Open
+          # workaround documented in the release notes.
+          APPLE_SIGNING_IDENTITY: "-"
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Flock ${{ github.ref_name }}'
