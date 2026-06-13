@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="disc" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#FFB366"/>
+      <stop offset="1" stop-color="#FF8C24"/>
+    </radialGradient>
+    <filter id="soft-blur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <clipPath id="disc-clip">
+      <circle cx="512" cy="512" r="480"/>
+    </clipPath>
+  </defs>
+
+  <!-- Disc -->
+  <circle cx="512" cy="512" r="480" fill="url(#disc)"/>
+
+  <!-- Long soft shadow under the bird, tilted toward bottom-right -->
+  <g clip-path="url(#disc-clip)" opacity="0.22">
+    <g filter="url(#soft-blur)" transform="translate(48 56)">
+      <path
+        d="M 196 460
+           C 260 410, 400 380, 512 432
+           C 624 380, 764 410, 828 460
+           C 740 460, 660 460, 596 480
+           C 560 492, 542 522, 542 564
+           L 528 596
+           L 512 624
+           L 496 596
+           L 482 564
+           C 482 522, 464 492, 428 480
+           C 364 460, 284 460, 196 460 Z"
+        fill="#000"/>
+    </g>
+  </g>
+
+  <!-- Bird: cream silhouette of a swift in flight.
+       Two swept wings meeting at a small central body with a short tail. -->
+  <path
+    d="M 196 460
+       C 260 410, 400 380, 512 432
+       C 624 380, 764 410, 828 460
+       C 740 460, 660 460, 596 480
+       C 560 492, 542 522, 542 564
+       L 528 596
+       L 512 624
+       L 496 596
+       L 482 564
+       C 482 522, 464 492, 428 480
+       C 364 460, 284 460, 196 460 Z"
+    fill="#FFF3DC"/>
+</svg>

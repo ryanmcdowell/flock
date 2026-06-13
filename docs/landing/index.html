@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flock — Foursquare Swarm viewer</title>
+  <meta name="description" content="Every Foursquare Swarm check-in you've ever made, on one map. Searchable, filterable. Stays on your machine." />
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fdf7ec;
+      --surface: #ffffff;
+      --ink: #2a2218;
+      --ink-2: #5c4d3a;
+      --ink-3: #8a7a5e;
+      --accent: #FF9933;
+      --accent-deep: #e07a14;
+      --line: #e8e0c8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .icon {
+      width: 128px;
+      height: 128px;
+      margin: 0 auto 32px;
+      display: block;
+      filter: drop-shadow(0 12px 24px rgba(255, 153, 51, 0.18));
+    }
+    h1 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      margin: 0 0 14px;
+      line-height: 1;
+    }
+    .accent { color: var(--accent); font-style: normal; }
+    .tagline {
+      font-size: 17px;
+      color: var(--ink-2);
+      margin: 0 auto 40px;
+      max-width: 500px;
+      line-height: 1.55;
+    }
+    .download {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 32px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 150ms, transform 150ms;
+      box-shadow: 0 6px 20px rgba(255, 153, 51, 0.28);
+    }
+    .download:hover { background: var(--accent-deep); transform: translateY(-1px); }
+    .download .arrow { font-family: 'DM Mono', ui-monospace, monospace; opacity: 0.85; font-size: 13px; }
+    .download-meta {
+      font-family: 'DM Mono', ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--ink-3);
+      margin-top: 12px;
+      letter-spacing: 0.4px;
+    }
+    .alt-links {
+      margin-top: 28px;
+      font-size: 12px;
+      color: var(--ink-3);
+      font-family: 'DM Mono', ui-monospace, monospace;
+      letter-spacing: 0.2px;
+    }
+    .alt-links a {
+      color: var(--ink-2);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      margin: 0 6px;
+    }
+    .alt-links a:hover { color: var(--ink); }
+    .features {
+      margin-top: 84px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      text-align: left;
+    }
+    .feature {
+      padding: 22px 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .feature-title { font-weight: 600; margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+    .feature-body { font-size: 13px; color: var(--ink-2); line-height: 1.55; margin: 0; }
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--ink-3);
+      font-family: 'DM Mono', ui-monospace, monospace;
+      letter-spacing: 0.3px;
+    }
+    footer a { color: var(--ink-2); }
+    @media (max-width: 600px) {
+      h1 { font-size: 40px; }
+      .page { padding: 48px 20px; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <img class="icon" src="icon.png" alt="Flock app icon" width="128" height="128" />
+    <h1>Flock</h1>
+    <p class="tagline">
+      Every Foursquare Swarm check-in you've ever made,
+      <em class="accent">on one map.</em>
+      Searchable, filterable, stays on your machine.
+    </p>
+
+    <a id="primary-download" class="download" href="#" target="_blank" rel="noreferrer">
+      <span id="primary-label">Download Flock</span>
+      <span class="arrow">↓</span>
+    </a>
+    <div id="primary-meta" class="download-meta">checking for latest release…</div>
+
+    <div class="alt-links">
+      Or:
+      <a href="#" id="link-mac-arm" target="_blank" rel="noreferrer">macOS (Apple Silicon)</a>·
+      <a href="#" id="link-mac-intel" target="_blank" rel="noreferrer">macOS (Intel)</a>·
+      <a href="#" id="link-win" target="_blank" rel="noreferrer">Windows</a>·
+      <a id="link-all" href="#" target="_blank" rel="noreferrer">All releases</a>
+    </div>
+
+    <section class="features">
+      <div class="feature">
+        <p class="feature-title">Real interactive map</p>
+        <p class="feature-body">
+          Google Maps in a paper aesthetic with category-colored pins.
+          Pan, zoom, click any pin for venue details.
+        </p>
+      </div>
+      <div class="feature">
+        <p class="feature-title">Searchable timeline</p>
+        <p class="feature-body">
+          Every check-in grouped by month, with full-text search across
+          venue, city, and your own notes.
+        </p>
+      </div>
+      <div class="feature">
+        <p class="feature-title">Local-first</p>
+        <p class="feature-body">
+          Your check-ins are cached on your machine. Flock talks
+          straight to Foursquare and to you — no third-party servers.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      Open source · <a id="repo-link" href="#" target="_blank" rel="noreferrer">github.com/REPLACE_USER/REPLACE_REPO</a>
+    </footer>
+  </main>
+
+  <script>
+    // ──────────────────────────────────────────────────────────────────
+    // Configure these two strings when wiring up the repo.
+    const REPO_OWNER = 'REPLACE_USER';
+    const REPO_NAME = 'REPLACE_REPO';
+    // ──────────────────────────────────────────────────────────────────
+
+    const ua = navigator.userAgent;
+    const platform = navigator.userAgentData?.platform ?? '';
+    const isMac = /Macintosh|Mac OS X/.test(ua) || platform === 'macOS';
+    const isWin = /Windows/.test(ua) || platform === 'Windows';
+    // navigator.userAgent on Apple Silicon still reports "Intel Mac OS X".
+    // Default to Apple Silicon as the primary on Mac since it's now the
+    // common case; Intel link remains in the "or" row.
+    const macDefaultIsArm = true;
+
+    const releasesUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+    document.getElementById('link-all').href = releasesUrl;
+    document.getElementById('repo-link').href = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
+
+    function findAsset(assets, predicate) {
+      return assets.find(predicate) ?? null;
+    }
+
+    async function loadLatest() {
+      const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+      let release = null;
+      try {
+        const resp = await fetch(apiUrl);
+        if (resp.ok) release = await resp.json();
+      } catch (e) { /* network failure — fall through */ }
+
+      const primary = document.getElementById('primary-download');
+      const primaryMeta = document.getElementById('primary-meta');
+      const primaryLabel = document.getElementById('primary-label');
+
+      if (!release || !Array.isArray(release.assets) || release.assets.length === 0) {
+        primary.href = releasesUrl;
+        primaryLabel.textContent = 'Releases on GitHub';
+        primaryMeta.textContent = 'no published release yet';
+        ['link-mac-arm', 'link-mac-intel', 'link-win'].forEach(id => {
+          const el = document.getElementById(id);
+          el.href = releasesUrl;
+        });
+        return;
+      }
+
+      const assets = release.assets;
+      const macArm = findAsset(assets, a => /\.dmg$/i.test(a.name) && /(aarch64|arm64|arm)/i.test(a.name));
+      const macIntel = findAsset(assets, a => /\.dmg$/i.test(a.name) && /(x64|x86_64|intel)/i.test(a.name));
+      const win = findAsset(assets, a => /\.(exe|msi)$/i.test(a.name));
+
+      const wireLink = (id, asset) => {
+        const el = document.getElementById(id);
+        if (asset) {
+          el.href = asset.browser_download_url;
+        } else {
+          el.href = releasesUrl;
+          el.style.opacity = '0.5';
+        }
+      };
+      wireLink('link-mac-arm', macArm);
+      wireLink('link-mac-intel', macIntel);
+      wireLink('link-win', win);
+
+      let pick = null;
+      let label = '';
+      if (isMac) {
+        pick = macDefaultIsArm ? (macArm ?? macIntel) : (macIntel ?? macArm);
+        label = (pick === macArm) ? 'macOS · Apple Silicon' : (pick === macIntel ? 'macOS · Intel' : 'macOS');
+      } else if (isWin) {
+        pick = win;
+        label = 'Windows';
+      }
+
+      if (!pick) {
+        primary.href = releasesUrl;
+        primaryLabel.textContent = 'Pick your platform';
+        primaryMeta.textContent = `${release.tag_name} · see all assets`;
+      } else {
+        primary.href = pick.browser_download_url;
+        primaryLabel.textContent = 'Download Flock';
+        primaryMeta.textContent = `${release.tag_name} · ${label}`;
+      }
+    }
+
+    loadLatest();
+  </script>
+</body>
+</html>
