@@ -16,7 +16,7 @@ export default function LoadingScreen() {
 
   return (
     <div style={{
-      width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative',
+      width: '100%', height: '100%', overflow: 'hidden', position: 'relative',
       background: 'var(--surface)',
       display: 'flex', flexDirection: 'column',
     }}>
