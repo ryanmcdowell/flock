@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { getVersion } from '@tauri-apps/api/app'
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store'
 
@@ -10,7 +11,12 @@ function initialsOf(name: string): string {
 export default function AccountMenu() {
   const profile = useAppStore(s => s.userProfile)
   const [open, setOpen] = useState(false)
+  const [version, setVersion] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion(null))
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -75,6 +81,11 @@ export default function AccountMenu() {
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'oklch(0.62 0.12 140)', marginTop: 2 }}>
               foursquare · connected
             </div>
+            {version && (
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>
+                Flock v{version}
+              </div>
+            )}
           </div>
           <button
             onClick={handleSignOut}
