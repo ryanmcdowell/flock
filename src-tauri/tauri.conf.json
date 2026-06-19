@@ -1,6 +1,6 @@
 {
   "productName": "Flock",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "identifier": "io.ryanmcdowell.flock",
   "build": {
     "frontendDist": "../dist",

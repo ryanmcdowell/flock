@@ -27,9 +27,12 @@ export default function UpdateBanner({ updater }: { updater: UpdaterApi }) {
   return (
     <div
       role="status"
+      data-tauri-drag-region
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '8px 22px',
+        // 86px left padding so the macOS overlay traffic lights have a clear
+        // backdrop without sitting on top of the banner text. Matches TopBar.
+        padding: '8px 22px 8px 86px',
         background: phase.kind === 'error' ? '#FEF2F2' : 'var(--accent-soft)',
         borderBottom: `1px solid ${phase.kind === 'error' ? '#FCA5A5' : '#f4d4a8'}`,
         fontSize: 12, fontFamily: 'var(--sans)',
